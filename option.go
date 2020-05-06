@@ -8,9 +8,9 @@ import (
 	"time"
 )
 
-type option func(interface{}) error
+type Option func(interface{}) error
 
-func ID(id string) option {
+func ID(id string) Option {
 	return func(v interface{}) error {
 		if s, ok := v.(*Smartmeter); ok {
 			s.ID = id
@@ -19,7 +19,7 @@ func ID(id string) option {
 	}
 }
 
-func Password(pw string) option {
+func Password(pw string) Option {
 	return func(v interface{}) error {
 		if s, ok := v.(*Smartmeter); ok {
 			s.Password = pw
@@ -28,7 +28,7 @@ func Password(pw string) option {
 	}
 }
 
-func Channel(channel string) option {
+func Channel(channel string) Option {
 	return func(v interface{}) error {
 		if s, ok := v.(*Smartmeter); ok {
 			s.Channel = channel
@@ -37,7 +37,7 @@ func Channel(channel string) option {
 	}
 }
 
-func IPAddr(ipAddr string) option {
+func IPAddr(ipAddr string) Option {
 	return func(v interface{}) error {
 		if s, ok := v.(*Smartmeter); ok {
 			s.IPAddr = ipAddr
@@ -46,7 +46,7 @@ func IPAddr(ipAddr string) option {
 	}
 }
 
-func DualStackSK() option {
+func DualStackSK() Option {
 	return func(v interface{}) error {
 		if s, ok := v.(*Smartmeter); ok {
 			s.DualStackSK = true
@@ -55,7 +55,7 @@ func DualStackSK() option {
 	}
 }
 
-func Retry(count int) option {
+func Retry(count int) Option {
 	return func(v interface{}) error {
 		if q, ok := v.(*skQuery); ok {
 			q.retry = count
@@ -64,7 +64,7 @@ func Retry(count int) option {
 	}
 }
 
-func RetryInterval(d time.Duration) option {
+func RetryInterval(d time.Duration) Option {
 	return func(v interface{}) error {
 		if q, ok := v.(*skQuery); ok {
 			q.retryInterval = d
@@ -73,7 +73,7 @@ func RetryInterval(d time.Duration) option {
 	}
 }
 
-func Timeout(d time.Duration) option {
+func Timeout(d time.Duration) Option {
 	return func(v interface{}) error {
 		if q, ok := v.(*skQuery); ok {
 			q.timeout = d
@@ -82,7 +82,7 @@ func Timeout(d time.Duration) option {
 	}
 }
 
-func Receiver(callback func(string) (bool, error)) option {
+func Receiver(callback func(string) (bool, error)) Option {
 	return func(v interface{}) error {
 		if q, ok := v.(*skQuery); ok {
 			q.receiver = callback
@@ -91,7 +91,7 @@ func Receiver(callback func(string) (bool, error)) option {
 	}
 }
 
-func Debug() option {
+func Debug() Option {
 	return func(v interface{}) error {
 		if s, ok := v.(*Smartmeter); ok {
 			s.Debug = true

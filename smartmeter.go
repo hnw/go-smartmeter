@@ -36,12 +36,12 @@ type Smartmeter struct {
 	IPAddr      string
 	DualStackSK bool
 	Debug       bool
-	Options     []option
+	Options     []Option
 	inputChan   chan string
 	writer      *bufio.Writer
 }
 
-func Open(path string, opts ...option) (s *Smartmeter, err error) {
+func Open(path string, opts ...Option) (s *Smartmeter, err error) {
 	c := &serial.Config{
 		Name:     path,
 		Baud:     115200,
@@ -85,7 +85,7 @@ func Open(path string, opts ...option) (s *Smartmeter, err error) {
 	return
 }
 
-func (s *Smartmeter) GetVersion(opts ...option) (version string, err error) {
+func (s *Smartmeter) GetVersion(opts ...Option) (version string, err error) {
 	res, err := s.QuerySKCommand("SKVER", opts...)
 	if err != nil {
 		return
@@ -99,7 +99,7 @@ func (s *Smartmeter) GetVersion(opts ...option) (version string, err error) {
 	return
 }
 
-func (s *Smartmeter) GetInfo(opts ...option) (info string, err error) {
+func (s *Smartmeter) GetInfo(opts ...Option) (info string, err error) {
 	res, err := s.QuerySKCommand("SKINFO", opts...)
 	if err != nil {
 		return
@@ -113,7 +113,7 @@ func (s *Smartmeter) GetInfo(opts ...option) (info string, err error) {
 	return
 }
 
-func (s *Smartmeter) GetRegisterValue(regName string, opts ...option) (registerValue string, err error) {
+func (s *Smartmeter) GetRegisterValue(regName string, opts ...Option) (registerValue string, err error) {
 	if !strings.HasPrefix(regName, "S") {
 		return "", fmt.Errorf("Invalid register name: %s")
 	}
@@ -130,7 +130,7 @@ func (s *Smartmeter) GetRegisterValue(regName string, opts ...option) (registerV
 	return
 }
 
-func (s *Smartmeter) SetRegisterValue(regName string, regValue string, opts ...option) (err error) {
+func (s *Smartmeter) SetRegisterValue(regName string, regValue string, opts ...Option) (err error) {
 	if !strings.HasPrefix(regName, "S") {
 		return fmt.Errorf("Invalid register name: %s")
 	}
@@ -139,7 +139,7 @@ func (s *Smartmeter) SetRegisterValue(regName string, regValue string, opts ...o
 	return
 }
 
-func (s *Smartmeter) SetID(opts ...option) (err error) {
+func (s *Smartmeter) SetID(opts ...Option) (err error) {
 	if s.ID == "" {
 		return errors.New("ID not specifed")
 	}
@@ -147,7 +147,7 @@ func (s *Smartmeter) SetID(opts ...option) (err error) {
 	return
 }
 
-func (s *Smartmeter) SetPassword(opts ...option) (err error) {
+func (s *Smartmeter) SetPassword(opts ...Option) (err error) {
 	if s.Password == "" {
 		return errors.New("Password not specifed")
 	}
@@ -156,7 +156,7 @@ func (s *Smartmeter) SetPassword(opts ...option) (err error) {
 	return
 }
 
-func (s *Smartmeter) GetNeibourIP(opts ...option) (ipAddr string, err error) {
+func (s *Smartmeter) GetNeibourIP(opts ...Option) (ipAddr string, err error) {
 	res, err := s.QuerySKCommand("SKTABLE 2", opts...)
 	if err != nil {
 		return
@@ -170,12 +170,12 @@ func (s *Smartmeter) GetNeibourIP(opts ...option) (ipAddr string, err error) {
 	return
 }
 
-func (s *Smartmeter) getIPAddrFromMacAddr(opts ...option) (ipAddr string, err error) {
+func (s *Smartmeter) getIPAddrFromMacAddr(opts ...Option) (ipAddr string, err error) {
 	callback := func(line string) (bool, error) {
 		// SKLL64コマンドだけはOKを返さず、直後の1行がレスポンス
 		return true, nil
 	}
-	opts = append([]option{Receiver(callback)}, opts...)
+	opts = append([]Option{Receiver(callback)}, opts...)
 	res, err := s.QuerySKCommand("SKLL64 "+s.MacAddr, opts...)
 	ipAddr = reIPAddr.FindString(res)
 	if ipAddr == "" {
@@ -184,7 +184,7 @@ func (s *Smartmeter) getIPAddrFromMacAddr(opts ...option) (ipAddr string, err er
 	return
 }
 
-func (s *Smartmeter) Scan(opts ...option) (err error) {
+func (s *Smartmeter) Scan(opts ...Option) (err error) {
 	if err = s.SetID(); err != nil {
 		fmt.Printf("%v", err)
 		return
@@ -220,7 +220,7 @@ func (s *Smartmeter) Scan(opts ...option) (err error) {
 		}
 		return false, nil
 	}
-	opts = append([]option{Receiver(callback)}, opts...)
+	opts = append([]Option{Receiver(callback)}, opts...)
 	res, err := s.QuerySKCommand(cmd, opts...)
 	if err != nil {
 		return
@@ -249,7 +249,7 @@ func (s *Smartmeter) Scan(opts ...option) (err error) {
 	return
 }
 
-func (s *Smartmeter) Join(opts ...option) (err error) {
+func (s *Smartmeter) Join(opts ...Option) (err error) {
 	callback := func(line string) (bool, error) {
 		if strings.HasPrefix(line, "EVENT 24 ") {
 			// EVENT 24: PANAによる接続過程でエラーが発生した
@@ -260,12 +260,12 @@ func (s *Smartmeter) Join(opts ...option) (err error) {
 		}
 		return false, nil
 	}
-	opts = append([]option{Receiver(callback)}, opts...)
+	opts = append([]Option{Receiver(callback)}, opts...)
 	_, err = s.QuerySKCommand("SKJOIN "+s.IPAddr, opts...)
 	return
 }
 
-func (s *Smartmeter) Authenticate(opts ...option) (err error) {
+func (s *Smartmeter) Authenticate(opts ...Option) (err error) {
 	err = s.Scan(opts...)
 	if err != nil {
 		return
@@ -281,7 +281,7 @@ func (s *Smartmeter) Authenticate(opts ...option) (err error) {
 	return s.Join(opts...)
 }
 
-func (s *Smartmeter) QuerySKCommand(cmd string, opts ...option) (res string, err error) {
+func (s *Smartmeter) QuerySKCommand(cmd string, opts ...Option) (res string, err error) {
 	query, err := NewSKQuery(s, cmd, append(s.Options, opts...)...)
 	if err != nil {
 		return
@@ -289,7 +289,7 @@ func (s *Smartmeter) QuerySKCommand(cmd string, opts ...option) (res string, err
 	return query.Exec()
 }
 
-func (s *Smartmeter) QueryEchoRequest(req *EchoFrame, opts ...option) (res *EchoFrame, err error) {
+func (s *Smartmeter) QueryEchoRequest(req *EchoFrame, opts ...Option) (res *EchoFrame, err error) {
 	secure := 1
 	port := 3610
 	side := 0 // 0: B-route, 1: HAN
@@ -331,7 +331,7 @@ func (s *Smartmeter) QueryEchoRequest(req *EchoFrame, opts ...option) (res *Echo
 		}
 		return false, nil
 	}
-	opts = append([]option{Receiver(callback)}, opts...)
+	opts = append([]Option{Receiver(callback)}, opts...)
 	_, err = s.QuerySKCommand(cmd, opts...)
 	return
 }

@@ -19,7 +19,7 @@ type skQuery struct {
 
 var RetryableError = errors.New("retrying...")
 
-func NewSKQuery(s *Smartmeter, command string, opts ...option) (*skQuery, error) {
+func NewSKQuery(s *Smartmeter, command string, opts ...Option) (*skQuery, error) {
 	q := &skQuery{
 		s:             s,
 		command:       command,
