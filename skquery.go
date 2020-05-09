@@ -7,26 +7,26 @@ import (
 	"time"
 )
 
-type skQuery struct {
-	s             *Smartmeter
+type query struct {
+	s             *Device
 	command       string
 	retry         int
 	retryInterval time.Duration
 	timeout       time.Duration
-	receiver      func(string) (bool, error)
+	reader        func(string) (bool, error)
 	debug         bool
 }
 
 var RetryableError = errors.New("retrying...")
 
-func NewSKQuery(s *Smartmeter, command string, opts ...Option) (*skQuery, error) {
-	q := &skQuery{
+func NewSKQuery(s *Device, command string, opts ...Option) (*query, error) {
+	q := &query{
 		s:             s,
 		command:       command,
 		retryInterval: 2 * time.Second,
 		timeout:       10 * time.Second,
-		receiver: func(line string) (bool, error) {
-			// デフォルトのreceiver。「OK」まで読む。SKコマンドの大半はこれで対応できる。
+		reader: func(line string) (bool, error) {
+			// デフォルreader。「OK」まで読む。SKコマンドの大半はこれで対応できる。
 			if line == "OK" {
 				return true, nil
 			}
@@ -41,7 +41,7 @@ func NewSKQuery(s *Smartmeter, command string, opts ...Option) (*skQuery, error)
 	return q, nil
 }
 
-func (q *skQuery) Exec() (res string, err error) {
+func (q *query) Exec() (res string, err error) {
 	if q.debug {
 		fmt.Printf(">> %s\n", q.command)
 	}
@@ -70,7 +70,7 @@ func (q *skQuery) Exec() (res string, err error) {
 				return "", fmt.Errorf("Q command response error: %s", line)
 			}
 			var ret bool
-			ret, err = q.receiver(line)
+			ret, err = q.reader(line)
 			if err != nil {
 				if errors.Is(err, RetryableError) {
 					q.retry--
@@ -91,5 +91,4 @@ func (q *skQuery) Exec() (res string, err error) {
 			}
 		}
 	}
-
 }

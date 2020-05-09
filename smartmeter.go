@@ -25,8 +25,8 @@ var (
 	reEchonetLiteUDP = regexp.MustCompile(`(?m)^ERXUDP (?:[\dA-F]{4}:){7}[\dA-F]{4} (?:[\dA-F]{4}:){7}[\dA-F]{4} 0E1A 0E1A [\dA-F]{16} \d(?: \d+)? ([\dA-F]+) (.*)$`)
 )
 
-// Smartmeter
-type Smartmeter struct {
+// Device
+type Device struct {
 	SerialPort  string
 	ID          string
 	Password    string
@@ -41,7 +41,7 @@ type Smartmeter struct {
 	writer      *bufio.Writer
 }
 
-func Open(path string, opts ...Option) (s *Smartmeter, err error) {
+func Open(path string, opts ...Option) (d *Device, err error) {
 	c := &serial.Config{
 		Name:     path,
 		Baud:     115200,
@@ -53,19 +53,19 @@ func Open(path string, opts ...Option) (s *Smartmeter, err error) {
 		return
 	}
 
-	s = &Smartmeter{
+	d = &Device{
 		Options: opts,
 		writer:  bufio.NewWriter(sr),
 	}
 	for _, opt := range opts {
-		if err := opt(s); err != nil {
+		if err := opt(d); err != nil {
 			return nil, err
 		}
 	}
 
 	scanner := bufio.NewScanner(sr)
 	ch := make(chan string, 4)
-	s.inputChan = ch
+	d.inputChan = ch
 
 	go func() {
 		defer close(ch)
@@ -85,8 +85,8 @@ func Open(path string, opts ...Option) (s *Smartmeter, err error) {
 	return
 }
 
-func (s *Smartmeter) GetVersion(opts ...Option) (version string, err error) {
-	res, err := s.QuerySKCommand("SKVER", opts...)
+func (d *Device) GetVersion(opts ...Option) (version string, err error) {
+	res, err := d.QuerySKCommand("SKVER", opts...)
 	if err != nil {
 		return
 	}
@@ -99,8 +99,8 @@ func (s *Smartmeter) GetVersion(opts ...Option) (version string, err error) {
 	return
 }
 
-func (s *Smartmeter) GetInfo(opts ...Option) (info string, err error) {
-	res, err := s.QuerySKCommand("SKINFO", opts...)
+func (d *Device) GetInfo(opts ...Option) (info string, err error) {
+	res, err := d.QuerySKCommand("SKINFO", opts...)
 	if err != nil {
 		return
 	}
@@ -113,11 +113,11 @@ func (s *Smartmeter) GetInfo(opts ...Option) (info string, err error) {
 	return
 }
 
-func (s *Smartmeter) GetRegisterValue(regName string, opts ...Option) (registerValue string, err error) {
+func (d *Device) GetRegisterValue(regName string, opts ...Option) (registerValue string, err error) {
 	if !strings.HasPrefix(regName, "S") {
 		return "", fmt.Errorf("Invalid register name: %s")
 	}
-	res, err := s.QuerySKCommand("SKSREG "+regName, opts...)
+	res, err := d.QuerySKCommand("SKSREG "+regName, opts...)
 	if err != nil {
 		return
 	}
@@ -130,34 +130,34 @@ func (s *Smartmeter) GetRegisterValue(regName string, opts ...Option) (registerV
 	return
 }
 
-func (s *Smartmeter) SetRegisterValue(regName string, regValue string, opts ...Option) (err error) {
+func (d *Device) SetRegisterValue(regName string, regValue string, opts ...Option) (err error) {
 	if !strings.HasPrefix(regName, "S") {
 		return fmt.Errorf("Invalid register name: %s")
 	}
 	cmd := fmt.Sprintf("SKSREG %s %s", regName, regValue)
-	_, err = s.QuerySKCommand(cmd, opts...)
+	_, err = d.QuerySKCommand(cmd, opts...)
 	return
 }
 
-func (s *Smartmeter) SetID(opts ...Option) (err error) {
-	if s.ID == "" {
+func (d *Device) SetID(opts ...Option) (err error) {
+	if d.ID == "" {
 		return errors.New("ID not specifed")
 	}
-	_, err = s.QuerySKCommand("SKSETRBID "+s.ID, opts...)
+	_, err = d.QuerySKCommand("SKSETRBID "+d.ID, opts...)
 	return
 }
 
-func (s *Smartmeter) SetPassword(opts ...Option) (err error) {
-	if s.Password == "" {
+func (d *Device) SetPassword(opts ...Option) (err error) {
+	if d.Password == "" {
 		return errors.New("Password not specifed")
 	}
-	cmd := fmt.Sprintf("SKSETPWD %X %s", len(s.Password), s.Password)
-	_, err = s.QuerySKCommand(cmd, opts...)
+	cmd := fmt.Sprintf("SKSETPWD %X %s", len(d.Password), d.Password)
+	_, err = d.QuerySKCommand(cmd, opts...)
 	return
 }
 
-func (s *Smartmeter) GetNeibourIP(opts ...Option) (ipAddr string, err error) {
-	res, err := s.QuerySKCommand("SKTABLE 2", opts...)
+func (d *Device) GetNeibourIP(opts ...Option) (ipAddr string, err error) {
+	res, err := d.QuerySKCommand("SKTABLE 2", opts...)
 	if err != nil {
 		return
 	}
@@ -170,13 +170,13 @@ func (s *Smartmeter) GetNeibourIP(opts ...Option) (ipAddr string, err error) {
 	return
 }
 
-func (s *Smartmeter) getIPAddrFromMacAddr(opts ...Option) (ipAddr string, err error) {
+func (d *Device) getIPAddrFromMacAddr(opts ...Option) (ipAddr string, err error) {
 	callback := func(line string) (bool, error) {
 		// SKLL64コマンドだけはOKを返さず、直後の1行がレスポンス
 		return true, nil
 	}
-	opts = append([]Option{Receiver(callback)}, opts...)
-	res, err := s.QuerySKCommand("SKLL64 "+s.MacAddr, opts...)
+	opts = append([]Option{Reader(callback)}, opts...)
+	res, err := d.QuerySKCommand("SKLL64 "+d.MacAddr, opts...)
 	ipAddr = reIPAddr.FindString(res)
 	if ipAddr == "" {
 		err = fmt.Errorf(`IP address is invalid: "%s"`, res)
@@ -184,32 +184,32 @@ func (s *Smartmeter) getIPAddrFromMacAddr(opts ...Option) (ipAddr string, err er
 	return
 }
 
-func (s *Smartmeter) Scan(opts ...Option) (err error) {
-	if err = s.SetID(); err != nil {
+func (d *Device) Scan(opts ...Option) (err error) {
+	if err = d.SetID(); err != nil {
 		fmt.Printf("%v", err)
 		return
 	}
-	if err = s.SetPassword(); err != nil {
+	if err = d.SetPassword(); err != nil {
 		fmt.Printf("%v", err)
 		return
 	}
 
 	var mask uint32
 	mask = 0xffffffff
-	if s.Channel != "" {
+	if d.Channel != "" {
 		var i int64
-		i, err = strconv.ParseInt(s.Channel, 16, 0)
+		i, err = strconv.ParseInt(d.Channel, 16, 0)
 		if err != nil {
-			err = fmt.Errorf(`Specified channel is invalid: "%s"`, s.Channel)
+			err = fmt.Errorf(`Specified channel is invalid: "%s"`, d.Channel)
 			return
 		} else if i < 33 || i > 60 {
-			err = fmt.Errorf(`Channel must be 21-3C: "%s"`, s.Channel)
+			err = fmt.Errorf(`Channel must be 21-3C: "%s"`, d.Channel)
 			return
 		}
 		mask = 1 << (i - 33)
 	}
 	cmd := fmt.Sprintf("SKSCAN 2 %08X 7", mask)
-	if s.DualStackSK {
+	if d.DualStackSK {
 		cmd = cmd + " 0"
 	}
 
@@ -220,8 +220,8 @@ func (s *Smartmeter) Scan(opts ...Option) (err error) {
 		}
 		return false, nil
 	}
-	opts = append([]Option{Receiver(callback)}, opts...)
-	res, err := s.QuerySKCommand(cmd, opts...)
+	opts = append([]Option{Reader(callback)}, opts...)
+	res, err := d.QuerySKCommand(cmd, opts...)
 	if err != nil {
 		return
 	}
@@ -237,19 +237,19 @@ func (s *Smartmeter) Scan(opts ...Option) (err error) {
 		err = fmt.Errorf(`Channel or PAN ID or MAC address is invalid: "%s", "%s", "%s"`, channel, panID, macAddr)
 		return
 	}
-	s.Channel = channel
-	s.PanID = panID
-	s.MacAddr = macAddr
+	d.Channel = channel
+	d.PanID = panID
+	d.MacAddr = macAddr
 
-	ipAddr, err := s.getIPAddrFromMacAddr()
+	ipAddr, err := d.getIPAddrFromMacAddr()
 	if err != nil {
 		return
 	}
-	s.IPAddr = ipAddr
+	d.IPAddr = ipAddr
 	return
 }
 
-func (s *Smartmeter) Join(opts ...Option) (err error) {
+func (d *Device) Join(opts ...Option) (err error) {
 	callback := func(line string) (bool, error) {
 		if strings.HasPrefix(line, "EVENT 24 ") {
 			// EVENT 24: PANAによる接続過程でエラーが発生した
@@ -260,51 +260,51 @@ func (s *Smartmeter) Join(opts ...Option) (err error) {
 		}
 		return false, nil
 	}
-	opts = append([]Option{Receiver(callback)}, opts...)
-	_, err = s.QuerySKCommand("SKJOIN "+s.IPAddr, opts...)
+	opts = append([]Option{Reader(callback)}, opts...)
+	_, err = d.QuerySKCommand("SKJOIN "+d.IPAddr, opts...)
 	return
 }
 
-func (s *Smartmeter) Authenticate(opts ...Option) (err error) {
-	err = s.Scan(opts...)
+func (d *Device) Authenticate(opts ...Option) (err error) {
+	err = d.Scan(opts...)
 	if err != nil {
 		return
 	}
 
-	if err = s.SetRegisterValue("S02", s.Channel, opts...); err != nil {
+	if err = d.SetRegisterValue("S02", d.Channel, opts...); err != nil {
 		return
 	}
 
-	if err = s.SetRegisterValue("S03", s.PanID, opts...); err != nil {
+	if err = d.SetRegisterValue("S03", d.PanID, opts...); err != nil {
 		return
 	}
-	return s.Join(opts...)
+	return d.Join(opts...)
 }
 
-func (s *Smartmeter) QuerySKCommand(cmd string, opts ...Option) (res string, err error) {
-	query, err := NewSKQuery(s, cmd, append(s.Options, opts...)...)
+func (d *Device) QuerySKCommand(cmd string, opts ...Option) (res string, err error) {
+	query, err := NewSKQuery(d, cmd, append(d.Options, opts...)...)
 	if err != nil {
 		return
 	}
 	return query.Exec()
 }
 
-func (s *Smartmeter) QueryEchoRequest(req *EchoFrame, opts ...Option) (res *EchoFrame, err error) {
+func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err error) {
 	secure := 1
 	port := 3610
 	side := 0 // 0: B-route, 1: HAN
 
-	if s.IPAddr == "" {
+	if d.IPAddr == "" {
 		err = errors.New("IP address for smart electric energy meter is not specifed")
 		return
 	}
 
 	rawFrame := req.Build()
 	var cmd string
-	if s.DualStackSK {
-		cmd = fmt.Sprintf("SKSENDTO %d %s %04X %d %d %04X %s", secure, s.IPAddr, port, secure, side, len(rawFrame), rawFrame)
+	if d.DualStackSK {
+		cmd = fmt.Sprintf("SKSENDTO %d %s %04X %d %d %04X %s", secure, d.IPAddr, port, secure, side, len(rawFrame), rawFrame)
 	} else {
-		cmd = fmt.Sprintf("SKSENDTO %d %s %04X %d %04X %s", secure, s.IPAddr, port, secure, len(rawFrame), rawFrame)
+		cmd = fmt.Sprintf("SKSENDTO %d %s %04X %d %04X %s", secure, d.IPAddr, port, secure, len(rawFrame), rawFrame)
 	}
 
 	callback := func(line string) (bool, error) {
@@ -318,7 +318,7 @@ func (s *Smartmeter) QueryEchoRequest(req *EchoFrame, opts ...Option) (res *Echo
 				return false, fmt.Errorf("PANA unconnected (%s)", line)
 			}
 		} else if strings.HasPrefix(line, "ERXUDP ") {
-			f, err := s.parseERXUDP(line)
+			f, err := parseERXUDP(line)
 			/*
 				if err != nil {
 					fmt.Printf("err=%v\n", err)
@@ -331,14 +331,14 @@ func (s *Smartmeter) QueryEchoRequest(req *EchoFrame, opts ...Option) (res *Echo
 		}
 		return false, nil
 	}
-	opts = append([]Option{Receiver(callback)}, opts...)
-	_, err = s.QuerySKCommand(cmd, opts...)
+	opts = append([]Option{Reader(callback)}, opts...)
+	_, err = d.QuerySKCommand(cmd, opts...)
 	return
 }
 
-// ERXUDPイベント行を受け取ってEchoFrameを返す
+// ERXUDPイベント行を受け取ってFrameを返す
 // ECHONET Liteのフレームのみ処理する
-func (s *Smartmeter) parseERXUDP(line string) (res *EchoFrame, err error) {
+func parseERXUDP(line string) (res *Frame, err error) {
 	matched := reEchonetLiteUDP.FindStringSubmatch(line)
 	if len(matched) == 0 {
 		err = fmt.Errorf("Unknown ERXUDP format: %s", line)
@@ -366,5 +366,5 @@ func (s *Smartmeter) parseERXUDP(line string) (res *EchoFrame, err error) {
 		err = errors.New("ERXUDP data length mismatch: " + line)
 		return
 	}
-	return ParseEchoFrame(rawData)
+	return ParseFrame(rawData)
 }

@@ -20,31 +20,31 @@ package main
 import (
 	"fmt"
 
-	sm "github.com/hnw/go-smartmeter"
+	smartmeter "github.com/hnw/go-smartmeter"
 )
 
 func main() {
-	con, err := sm.Open("/dev/ttyACM0",
-		sm.DualStackSK(), // Bルート専用モジュールを使う場合はコメントアウト
-		sm.ID("00000000000000000000000000000000"), // Bルート認証ID
-		sm.Password("AB0123456789"),               // パスワード
-		sm.Channel("33"))                          // チャンネル。各環境でScan()で取得した値に書き換える。
+	dev, err := smartmeter.Open("/dev/ttyACM0",
+		smartmeter.DualStackSK(), // Bルート専用モジュールを使う場合はコメントアウト
+		smartmeter.ID("00000000000000000000000000000000"), // Bルート認証ID
+		smartmeter.Password("AB0123456789"),               // パスワード
+		smartmeter.Channel("33"))                          // チャンネル。各環境でScan()で取得した値に書き換える。
 
 	if err != nil {
 		fmt.Printf("%+v", err)
 		return
 	}
 
-	err = con.Authenticate()
+	err = dev.Authenticate()
 	if err != nil {
 		fmt.Printf("%+v\n", err)
 		return
 	}
 
-	request := sm.NewEchoFrame(sm.LvSmartElectricEnergyMeter, sm.Get, []*sm.EchoProperty{
-		sm.NewEchoProperty(sm.LvSmartElectricEnergyMeter_InstantaneousElectricPower, nil),
+	request := smartmeter.NewFrame(smartmeter.LvSmartElectricEnergyMeter, smartmeter.Get, []*smartmeter.Property{
+		smartmeter.NewProperty(smartmeter.LvSmartElectricEnergyMeter_InstantaneousElectricPower, nil),
 	})
-	response, err = con.QueryEchoRequest(request, sm.Retry(3))
+	response, err = dev.QueryEchonetLite(request, smartmeter.Retry(3))
 	if err != nil {
 		fmt.Printf("%+v\n", err)
 		return

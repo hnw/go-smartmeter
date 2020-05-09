@@ -1,6 +1,6 @@
 // Functional Option Patternによるオプション指定
-// SmartmeterとskQueryの両方共通で使うためにfunc(interface{})になっている
-// Smartmeterで指定したオプションは全skQueryに引き継がれる
+// Deviceとqueryの両方共通で使うためにfunc(interface{})になっている
+// Deviceで指定したオプションは全queryに引き継がれる
 
 package smartmeter
 
@@ -11,8 +11,8 @@ import (
 type Option func(interface{}) error
 
 func ID(id string) Option {
-	return func(v interface{}) error {
-		if s, ok := v.(*Smartmeter); ok {
+	return func(tgt interface{}) error {
+		if s, ok := tgt.(*Device); ok {
 			s.ID = id
 		}
 		return nil
@@ -20,8 +20,8 @@ func ID(id string) Option {
 }
 
 func Password(pw string) Option {
-	return func(v interface{}) error {
-		if s, ok := v.(*Smartmeter); ok {
+	return func(tgt interface{}) error {
+		if s, ok := tgt.(*Device); ok {
 			s.Password = pw
 		}
 		return nil
@@ -29,8 +29,8 @@ func Password(pw string) Option {
 }
 
 func Channel(channel string) Option {
-	return func(v interface{}) error {
-		if s, ok := v.(*Smartmeter); ok {
+	return func(tgt interface{}) error {
+		if s, ok := tgt.(*Device); ok {
 			s.Channel = channel
 		}
 		return nil
@@ -38,26 +38,26 @@ func Channel(channel string) Option {
 }
 
 func IPAddr(ipAddr string) Option {
-	return func(v interface{}) error {
-		if s, ok := v.(*Smartmeter); ok {
+	return func(tgt interface{}) error {
+		if s, ok := tgt.(*Device); ok {
 			s.IPAddr = ipAddr
 		}
 		return nil
 	}
 }
 
-func DualStackSK() Option {
-	return func(v interface{}) error {
-		if s, ok := v.(*Smartmeter); ok {
-			s.DualStackSK = true
+func DualStackSK(v bool) Option {
+	return func(tgt interface{}) error {
+		if s, ok := tgt.(*Device); ok {
+			s.DualStackSK = v
 		}
 		return nil
 	}
 }
 
 func Retry(count int) Option {
-	return func(v interface{}) error {
-		if q, ok := v.(*skQuery); ok {
+	return func(tgt interface{}) error {
+		if q, ok := tgt.(*query); ok {
 			q.retry = count
 		}
 		return nil
@@ -65,8 +65,8 @@ func Retry(count int) Option {
 }
 
 func RetryInterval(d time.Duration) Option {
-	return func(v interface{}) error {
-		if q, ok := v.(*skQuery); ok {
+	return func(tgt interface{}) error {
+		if q, ok := tgt.(*query); ok {
 			q.retryInterval = d
 		}
 		return nil
@@ -74,30 +74,30 @@ func RetryInterval(d time.Duration) Option {
 }
 
 func Timeout(d time.Duration) Option {
-	return func(v interface{}) error {
-		if q, ok := v.(*skQuery); ok {
+	return func(tgt interface{}) error {
+		if q, ok := tgt.(*query); ok {
 			q.timeout = d
 		}
 		return nil
 	}
 }
 
-func Receiver(callback func(string) (bool, error)) Option {
-	return func(v interface{}) error {
-		if q, ok := v.(*skQuery); ok {
-			q.receiver = callback
+func Reader(callback func(string) (bool, error)) Option {
+	return func(tgt interface{}) error {
+		if q, ok := tgt.(*query); ok {
+			q.reader = callback
 		}
 		return nil
 	}
 }
 
-func Debug() Option {
-	return func(v interface{}) error {
-		if s, ok := v.(*Smartmeter); ok {
-			s.Debug = true
+func Debug(v bool) Option {
+	return func(tgt interface{}) error {
+		if s, ok := tgt.(*Device); ok {
+			s.Debug = v
 		}
-		if q, ok := v.(*skQuery); ok {
-			q.debug = true
+		if q, ok := tgt.(*query); ok {
+			q.debug = v
 		}
 		return nil
 	}

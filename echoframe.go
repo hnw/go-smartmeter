@@ -28,17 +28,19 @@ const (
 	GetRes                     ServiceCode = 0x72
 )
 
-type EchoFrame struct {
-	TID        uint16          // トランザクションID
-	SEOJ       ClassCode       // 送信元ECHONET Liteオブジェクト
-	DEOJ       ClassCode       // 相手先ECHONET Liteオブジェクト
-	ESV        ServiceCode     // ECHONET Liteサービス
-	Properties []*EchoProperty // ECHONETプロパティ
+// Frame はECHONET Liteのフレームに対応する構造体
+// 複数のプロパティの操作を1フレームにまとめて送信することができる
+type Frame struct {
+	TID        uint16      // トランザクションID
+	SEOJ       ClassCode   // 送信元ECHONET Liteオブジェクト
+	DEOJ       ClassCode   // 相手先ECHONET Liteオブジェクト
+	ESV        ServiceCode // ECHONET Liteサービス
+	Properties []*Property // ECHONETプロパティ
 }
 
-// NewEchoFrame は echoFrame構造体のコンストラクタ関数
-func NewEchoFrame(dstClassCode ClassCode, esv ServiceCode, props []*EchoProperty) *EchoFrame {
-	f := &EchoFrame{
+// NewFrame は Frame構造体のコンストラクタ関数
+func NewFrame(dstClassCode ClassCode, esv ServiceCode, props []*Property) *Frame {
+	f := &Frame{
 		SEOJ:       Controller,
 		DEOJ:       dstClassCode,
 		ESV:        esv,
@@ -48,8 +50,8 @@ func NewEchoFrame(dstClassCode ClassCode, esv ServiceCode, props []*EchoProperty
 	return f
 }
 
-// ParseEchoFrame は ECHONET Liteフレームのバイト列を受け取り、EchoFrame構造体として返す
-func ParseEchoFrame(raw []byte) (f *EchoFrame, err error) {
+// ParseFrame は ECHONET Liteフレームのバイト列を受け取り、Frame構造体として返す
+func ParseFrame(raw []byte) (f *Frame, err error) {
 	if len(raw) < 14 {
 		return nil, errors.New("Too short ECHONET Lite frame")
 	}
@@ -71,7 +73,7 @@ func ParseEchoFrame(raw []byte) (f *EchoFrame, err error) {
 	// 処理対象プロパティカウンタ (OPC)
 	nProperty := int(raw[11])
 
-	props := make([]*EchoProperty, nProperty)
+	props := make([]*Property, nProperty)
 	i := 12
 	for j := 0; j < nProperty; j++ {
 		if len(raw) < i+2 {
@@ -86,14 +88,14 @@ func ParseEchoFrame(raw []byte) (f *EchoFrame, err error) {
 		}
 		// プロパティ値データ(EDT)
 		data := raw[i+2 : i+2+lenEDT]
-		props[j] = NewEchoProperty(PropertyCode(raw[i]), data)
+		props[j] = NewProperty(PropertyCode(raw[i]), data)
 		i = i + 2 + lenEDT
 	}
 
-	return &EchoFrame{TID: tid, SEOJ: seoj, DEOJ: deoj, ESV: esv, Properties: props}, nil
+	return &Frame{TID: tid, SEOJ: seoj, DEOJ: deoj, ESV: esv, Properties: props}, nil
 }
 
-func (f *EchoFrame) Build() []byte {
+func (f *Frame) Build() []byte {
 	buf := new(bytes.Buffer)
 	binary.Write(buf, binary.BigEndian, uint16(HeaderEchonetLite))
 	// トランザクションID
@@ -116,7 +118,7 @@ func (f *EchoFrame) Build() []byte {
 }
 
 // CorrespondTo は fとtargetとがリクエスト/レスポンスとして対応しているか確認する
-func (f *EchoFrame) CorrespondTo(target *EchoFrame) bool {
+func (f *Frame) CorrespondTo(target *Frame) bool {
 	if f.TID != target.TID {
 		return false
 	}
@@ -148,8 +150,8 @@ func (f *EchoFrame) CorrespondTo(target *EchoFrame) bool {
 	return true
 }
 
-// RegenerateTID: TIDを再生成する
-func (f *EchoFrame) RegenerateTID() {
+// RegenerateTID はFrameのTIDを再生成する
+func (f *Frame) RegenerateTID() {
 	rand.Seed(time.Now().UnixNano()) // 時刻をseedにする（ランダム性・予測不可能性が重要ではないため）
 	f.TID = uint16(rand.Int31n(0x10000))
 }

@@ -43,17 +43,18 @@ const (
 	LvSmartElectricEnergyMeter_ReverseDirectionCumulativeElectricEnergyAtEvery30Min PropertyCode = 0xeb // 定時積算電力量(逆方向)
 )
 
-type EchoProperty struct {
+// Property はECHONET Liteのプロパティに対応する構造体
+type Property struct {
 	EPC PropertyCode // ECHONETプロパティ
 	EDT []byte       // 要求電文プロパティ値データ(EDT)
 }
 
-// NewEchoProperty は EchoProperty構造体のコンストラクタ関数
-func NewEchoProperty(epc PropertyCode, edt []byte) *EchoProperty {
-	return &EchoProperty{EPC: epc, EDT: edt}
+// NewProperty は Property構造体のコンストラクタ関数
+func NewProperty(epc PropertyCode, edt []byte) *Property {
+	return &Property{EPC: epc, EDT: edt}
 }
 
-func (p *EchoProperty) Build() []byte {
+func (p *Property) Build() []byte {
 	buf := new(bytes.Buffer)
 	// ECHONETプロパティ
 	binary.Write(buf, binary.BigEndian, p.EPC)
@@ -65,7 +66,7 @@ func (p *EchoProperty) Build() []byte {
 	return buf.Bytes()
 }
 
-func (p *EchoProperty) Desc() (result string) {
+func (p *Property) Desc() (result string) {
 	switch p.EPC {
 	case NodeProfile_VersionInformation:
 		// Version情報

@@ -9,45 +9,45 @@ package main
 import (
 	"fmt"
 
-	sm "github.com/hnw/go-smartmeter"
+	smartmeter "github.com/hnw/go-smartmeter"
 )
 
 func main() {
-	con, err := sm.Open("/dev/ttyACM0",
-		//sm.Debug(),       // コマンドとレスポンスを全部確認したいときにアンコメントする
-		sm.DualStackSK(), // Bルート専用モジュールを使う場合はコメントアウト
-		sm.ID("00000000000000000000000000000000"), // Bルート認証ID
-		sm.Password("AB0123456789"),               // パスワード
-		sm.Channel("33"))                          // チャンネル。各環境でScan()で取得した値に書き換える。
+	dev, err := smartmeter.Open("/dev/ttyACM0",
+		//smartmeter.Debug(true),                            // コマンドとレスポンスを全部確認したいときにアンコメントする
+		smartmeter.DualStackSK(true),                      // Bルート専用モジュールを使う場合はコメントアウト
+		smartmeter.ID("00000000000000000000000000000000"), // Bルート認証ID
+		smartmeter.Password("AB0123456789"),               // パスワード
+		smartmeter.Channel("33"))                          // チャンネル。各環境でScan()で取得した値に書き換える。
 
 	if err != nil {
 		fmt.Printf("%+v", err)
 		return
 	}
 
-	if con.IPAddr == "" {
-		ipAddr, err := con.GetNeibourIP()
+	if dev.IPAddr == "" {
+		ipAddr, err := dev.GetNeibourIP()
 		if err == nil {
-			con.IPAddr = ipAddr
+			dev.IPAddr = ipAddr
 		}
 	}
 
-	request := sm.NewEchoFrame(sm.NodeProfile, sm.Get, []*sm.EchoProperty{
-		sm.NewEchoProperty(sm.NodeProfile_VersionInformation, nil),
-		sm.NewEchoProperty(sm.NodeProfile_ManufacturerCode, nil),
-		sm.NewEchoProperty(sm.NodeProfile_SelfNodeInstanceListS, nil),
+	request := smartmeter.NewFrame(smartmeter.NodeProfile, smartmeter.Get, []*smartmeter.Property{
+		smartmeter.NewProperty(smartmeter.NodeProfile_VersionInformation, nil),
+		smartmeter.NewProperty(smartmeter.NodeProfile_ManufacturerCode, nil),
+		smartmeter.NewProperty(smartmeter.NodeProfile_SelfNodeInstanceListS, nil),
 	})
-	response, err := con.QueryEchoRequest(request, sm.Retry(3))
+	response, err := dev.QueryEchonetLite(request, smartmeter.Retry(3))
 	if err != nil {
 		fmt.Printf("Error: %+v\n", err)
 
 		// 値が取得できなかったので、認証してから再度値を取る
-		err = con.Authenticate()
+		err = dev.Authenticate()
 		if err != nil {
 			fmt.Printf("%+v\n", err)
 			return
 		}
-		response, err = con.QueryEchoRequest(request, sm.Retry(3))
+		response, err = dev.QueryEchonetLite(request, smartmeter.Retry(3))
 	}
 
 	for _, p := range response.Properties {

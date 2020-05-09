@@ -11,25 +11,25 @@ import (
 	"fmt"
 	"time"
 
-	sm "github.com/hnw/go-smartmeter"
+	smartmeter "github.com/hnw/go-smartmeter"
 )
 
 func main() {
-	con, err := sm.Open("/dev/ttyACM0",
-		//sm.Debug(),       // コマンドとレスポンスを全部確認したいときにアンコメントする
-		sm.DualStackSK(), // Bルート専用モジュールを使う場合はコメントアウト
-		sm.ID("00000000000000000000000000000000"), // ルートB認証ID
-		sm.Password("AB0123456789"))               // パスワード
+	dev, err := smartmeter.Open("/dev/ttyACM0",
+		//smartmeter.Debug(true),                            // コマンドとレスポンスを全部確認したいときにアンコメントする
+		smartmeter.DualStackSK(true),                      // Bルート専用モジュールを使う場合はコメントアウト
+		smartmeter.ID("00000000000000000000000000000000"), // ルートB認証ID
+		smartmeter.Password("AB0123456789"))               // パスワード
 
 	if err != nil {
 		fmt.Printf("%+v", err)
 		return
 	}
 
-	err = con.Scan(sm.Timeout(100 * time.Second))
+	err = dev.Scan(smartmeter.Timeout(100 * time.Second))
 	if err != nil {
 		fmt.Printf("%+v\n", err)
 		return
 	}
-	fmt.Printf("%+v\n", con)
+	fmt.Printf("%+v\n", dev)
 }
