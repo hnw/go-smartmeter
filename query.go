@@ -58,16 +58,16 @@ func (q *query) Exec() (res string, err error) {
 	for {
 		select {
 		case <-tm.C:
-			return "", fmt.Errorf("Q command timeout (%dsec)", q.timeout/time.Second)
+			return "", fmt.Errorf("SK command timeout (%dsec)", q.timeout/time.Second)
 		case line, ok := <-q.s.inputChan:
 			if !ok {
-				return "", errors.New("Q command read error")
+				return "", errors.New("SK command read error")
 			}
 			if q.debug {
 				fmt.Printf("<< %s\n", line)
 			}
 			if strings.HasPrefix(line, "FAIL ") {
-				return "", fmt.Errorf("Q command response error: %s", line)
+				return "", fmt.Errorf("SK command response error: %s", line)
 			}
 			var ret bool
 			ret, err = q.reader(line)
