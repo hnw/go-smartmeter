@@ -15,7 +15,7 @@ import (
 
 func main() {
 	dev, err := smartmeter.Open("/dev/ttyACM0",
-		//smartmeter.Debug(true),                            // コマンドとレスポンスを全部確認したいときにアンコメントする
+		//smartmeter.Verbosity(3),                           // コマンドとレスポンスを全部確認したいときにアンコメントする
 		smartmeter.DualStackSK(true),                      // Bルート専用モジュールを使う場合はコメントアウト
 		smartmeter.ID("00000000000000000000000000000000"), // Bルート認証ID
 		smartmeter.Password("AB0123456789"),               // パスワード

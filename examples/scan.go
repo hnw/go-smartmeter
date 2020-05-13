@@ -16,7 +16,6 @@ import (
 
 func main() {
 	dev, err := smartmeter.Open("/dev/ttyACM0",
-		//smartmeter.Debug(true),                            // コマンドとレスポンスを全部確認したいときにアンコメントする
 		smartmeter.DualStackSK(true),                      // Bルート専用モジュールを使う場合はコメントアウト
 		smartmeter.ID("00000000000000000000000000000000"), // ルートB認証ID
 		smartmeter.Password("AB0123456789"))               // パスワード
@@ -26,10 +25,5 @@ func main() {
 		return
 	}
 
-	err = dev.Scan(smartmeter.Timeout(100 * time.Second))
-	if err != nil {
-		fmt.Printf("%+v\n", err)
-		return
-	}
-	fmt.Printf("%+v\n", dev)
+	dev.Scan(smartmeter.Timeout(100*time.Second), smartmeter.Verbosity(3))
 }

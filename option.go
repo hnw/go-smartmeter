@@ -107,7 +107,7 @@ func Logger(logger *log.Logger) Option {
 func Verbosity(v int) Option {
 	return func(tgt interface{}) error {
 		if d, ok := tgt.(*Device); ok {
-			d.verbosity = v
+			d.Verbosity = v
 		}
 		if q, ok := tgt.(*query); ok {
 			q.verbosity = v

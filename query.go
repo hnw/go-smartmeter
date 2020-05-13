@@ -19,7 +19,7 @@ type query struct {
 	verbosity     int
 }
 
-var RetryableError = errors.New("retrying...")
+var RetryableError = errors.New("Retrying...")
 
 func NewSKQuery(s *Device, command string, opts ...Option) (*query, error) {
 	q := &query{

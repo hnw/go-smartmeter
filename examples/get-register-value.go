@@ -14,7 +14,7 @@ import (
 
 func main() {
 	dev, err := smartmeter.Open("/dev/ttyACM0",
-		//smartmeter.Debug(true),       // コマンドとレスポンスを全部確認したいときにアンコメントする
+		//smartmeter.Verbosity(3),                           // コマンドとレスポンスを全部確認したいときにアンコメントする
 		smartmeter.DualStackSK(true)) // Bルート専用モジュールを使う場合はコメントアウト
 
 	if err != nil {

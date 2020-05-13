@@ -32,15 +32,16 @@ type Device struct {
 	ID          string
 	Password    string
 	Channel     string
-	PanID       string
-	MacAddr     string
 	IPAddr      string
 	DualStackSK bool
-	logger      *log.Logger
-	verbosity   int
-	Options     []Option
-	inputChan   chan string
-	writer      *bufio.Writer
+	Verbosity   int
+
+	panID     string
+	macAddr   string
+	logger    *log.Logger
+	options   []Option
+	inputChan chan string
+	writer    *bufio.Writer
 }
 
 func Open(path string, opts ...Option) (d *Device, err error) {
@@ -56,7 +57,7 @@ func Open(path string, opts ...Option) (d *Device, err error) {
 	}
 
 	d = &Device{
-		Options: opts,
+		options: opts,
 		writer:  bufio.NewWriter(sr),
 	}
 	for _, opt := range opts {
@@ -178,7 +179,7 @@ func (d *Device) getIPAddrFromMacAddr(opts ...Option) (ipAddr string, err error)
 		return true, nil
 	}
 	opts = append([]Option{Reader(callback)}, opts...)
-	res, err := d.QuerySKCommand("SKLL64 "+d.MacAddr, opts...)
+	res, err := d.QuerySKCommand("SKLL64 "+d.macAddr, opts...)
 	ipAddr = reIPAddr.FindString(res)
 	if ipAddr == "" {
 		err = fmt.Errorf(`IP address is invalid: "%s"`, res)
@@ -238,10 +239,10 @@ func (d *Device) Scan(opts ...Option) (err error) {
 		return
 	}
 	d.Channel = channel
-	d.PanID = panID
-	d.MacAddr = macAddr
+	d.panID = panID
+	d.macAddr = macAddr
 
-	ipAddr, err := d.getIPAddrFromMacAddr()
+	ipAddr, err := d.getIPAddrFromMacAddr(opts...)
 	if err != nil {
 		return
 	}
@@ -253,7 +254,7 @@ func (d *Device) Join(opts ...Option) (err error) {
 	callback := func(line string) (bool, error) {
 		if strings.HasPrefix(line, "EVENT 24 ") {
 			// EVENT 24: PANAによる接続過程でエラーが発生した
-			return false, fmt.Errorf("PANA connection error (%s) %w", line, RetryableError)
+			return false, fmt.Errorf("PANA connection error (%s). %w", line, RetryableError)
 		} else if strings.HasPrefix(line, "EVENT 25 ") {
 			// EVENT 25: PANAによる接続が完了した（Join成功）
 			return true, nil
@@ -275,14 +276,14 @@ func (d *Device) Authenticate(opts ...Option) (err error) {
 		return
 	}
 
-	if err = d.SetRegisterValue("S03", d.PanID, opts...); err != nil {
+	if err = d.SetRegisterValue("S03", d.panID, opts...); err != nil {
 		return
 	}
 	return d.Join(opts...)
 }
 
 func (d *Device) QuerySKCommand(cmd string, opts ...Option) (res string, err error) {
-	query, err := NewSKQuery(d, cmd, append(d.Options, opts...)...)
+	query, err := NewSKQuery(d, cmd, append(d.options, opts...)...)
 	if err != nil {
 		d.warnf("Error for SK command %q: %+v", cmd, err)
 		return
@@ -317,7 +318,7 @@ func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err e
 			// EVENT 21: UDP送信完了
 			if strings.HasSuffix(line, " 01") {
 				// 01: UDP送信失敗
-				return false, fmt.Errorf("Failed to send UDP packet (%s) %w", line, RetryableError)
+				return false, fmt.Errorf("Failed to send UDP packet (%s). %w", line, RetryableError)
 			} else if strings.HasSuffix(line, " 02") {
 				// 02: アドレス要請
 				return false, fmt.Errorf("PANA unconnected (%s)", line)
@@ -374,19 +375,19 @@ func parseERXUDP(line string) (res *Frame, err error) {
 }
 
 func (d *Device) warnf(fmt string, v ...interface{}) {
-	if d.verbosity >= 1 && d.logger != nil {
+	if d.Verbosity >= 1 && d.logger != nil {
 		d.logf(fmt, v...)
 	}
 }
 
 func (d *Device) infof(fmt string, v ...interface{}) {
-	if d.verbosity >= 2 && d.logger != nil {
+	if d.Verbosity >= 2 && d.logger != nil {
 		d.logf(fmt, v...)
 	}
 }
 
 func (d *Device) debugf(fmt string, v ...interface{}) {
-	if d.verbosity >= 3 && d.logger != nil {
+	if d.Verbosity >= 3 && d.logger != nil {
 		d.logf(fmt, v...)
 	}
 }
