@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -35,7 +36,8 @@ type Device struct {
 	MacAddr     string
 	IPAddr      string
 	DualStackSK bool
-	Debug       bool
+	logger      *log.Logger
+	verbosity   int
 	Options     []Option
 	inputChan   chan string
 	writer      *bufio.Writer
@@ -186,11 +188,9 @@ func (d *Device) getIPAddrFromMacAddr(opts ...Option) (ipAddr string, err error)
 
 func (d *Device) Scan(opts ...Option) (err error) {
 	if err = d.SetID(); err != nil {
-		fmt.Printf("%v", err)
 		return
 	}
 	if err = d.SetPassword(); err != nil {
-		fmt.Printf("%v", err)
 		return
 	}
 
@@ -319,12 +319,11 @@ func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err e
 			}
 		} else if strings.HasPrefix(line, "ERXUDP ") {
 			f, err := parseERXUDP(line)
-			/*
-				if err != nil {
-					fmt.Printf("err=%v\n", err)
-				}
-			*/
-			if err == nil && f.CorrespondTo(req) {
+			if err != nil {
+				d.infof("ERXUDP Parse error: line=%s, err=%+v", line, err)
+			} else if !f.CorrespondTo(req) {
+				d.infof("ERXUDP error: f=%+v, req=%+v", f, req)
+			} else {
 				res = f
 				return true, nil
 			}
@@ -367,4 +366,30 @@ func parseERXUDP(line string) (res *Frame, err error) {
 		return
 	}
 	return ParseFrame(rawData)
+}
+
+func (d *Device) warnf(fmt string, v ...interface{}) {
+	if d.verbosity >= 1 && d.logger != nil {
+		d.logf(fmt, v...)
+	}
+}
+
+func (d *Device) infof(fmt string, v ...interface{}) {
+	if d.verbosity >= 2 && d.logger != nil {
+		d.logf(fmt, v...)
+	}
+}
+
+func (d *Device) debugf(fmt string, v ...interface{}) {
+	if d.verbosity >= 3 && d.logger != nil {
+		d.logf(fmt, v...)
+	}
+}
+
+func (d *Device) logf(fmt string, v ...interface{}) {
+	if d.logger != nil {
+		d.logger.Printf(fmt, v...)
+	} else {
+		log.Printf(fmt, v...)
+	}
 }

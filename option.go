@@ -5,6 +5,7 @@
 package smartmeter
 
 import (
+	"log"
 	"time"
 )
 
@@ -12,8 +13,8 @@ type Option func(interface{}) error
 
 func ID(id string) Option {
 	return func(tgt interface{}) error {
-		if s, ok := tgt.(*Device); ok {
-			s.ID = id
+		if d, ok := tgt.(*Device); ok {
+			d.ID = id
 		}
 		return nil
 	}
@@ -21,8 +22,8 @@ func ID(id string) Option {
 
 func Password(pw string) Option {
 	return func(tgt interface{}) error {
-		if s, ok := tgt.(*Device); ok {
-			s.Password = pw
+		if d, ok := tgt.(*Device); ok {
+			d.Password = pw
 		}
 		return nil
 	}
@@ -30,8 +31,8 @@ func Password(pw string) Option {
 
 func Channel(channel string) Option {
 	return func(tgt interface{}) error {
-		if s, ok := tgt.(*Device); ok {
-			s.Channel = channel
+		if d, ok := tgt.(*Device); ok {
+			d.Channel = channel
 		}
 		return nil
 	}
@@ -39,8 +40,8 @@ func Channel(channel string) Option {
 
 func IPAddr(ipAddr string) Option {
 	return func(tgt interface{}) error {
-		if s, ok := tgt.(*Device); ok {
-			s.IPAddr = ipAddr
+		if d, ok := tgt.(*Device); ok {
+			d.IPAddr = ipAddr
 		}
 		return nil
 	}
@@ -48,8 +49,8 @@ func IPAddr(ipAddr string) Option {
 
 func DualStackSK(v bool) Option {
 	return func(tgt interface{}) error {
-		if s, ok := tgt.(*Device); ok {
-			s.DualStackSK = v
+		if d, ok := tgt.(*Device); ok {
+			d.DualStackSK = v
 		}
 		return nil
 	}
@@ -91,13 +92,25 @@ func Reader(callback func(string) (bool, error)) Option {
 	}
 }
 
-func Debug(v bool) Option {
+func Logger(logger *log.Logger) Option {
 	return func(tgt interface{}) error {
-		if s, ok := tgt.(*Device); ok {
-			s.Debug = v
+		if d, ok := tgt.(*Device); ok {
+			d.logger = logger
 		}
 		if q, ok := tgt.(*query); ok {
-			q.debug = v
+			q.logger = logger
+		}
+		return nil
+	}
+}
+
+func Verbosity(v int) Option {
+	return func(tgt interface{}) error {
+		if d, ok := tgt.(*Device); ok {
+			d.verbosity = v
+		}
+		if q, ok := tgt.(*query); ok {
+			q.verbosity = v
 		}
 		return nil
 	}

@@ -3,6 +3,7 @@ package smartmeter
 import (
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -14,7 +15,8 @@ type query struct {
 	retryInterval time.Duration
 	timeout       time.Duration
 	reader        func(string) (bool, error)
-	debug         bool
+	logger        *log.Logger
+	verbosity     int
 }
 
 var RetryableError = errors.New("retrying...")
@@ -42,9 +44,7 @@ func NewSKQuery(s *Device, command string, opts ...Option) (*query, error) {
 }
 
 func (q *query) Exec() (res string, err error) {
-	if q.debug {
-		fmt.Printf(">> %s\n", q.command)
-	}
+	q.debugf(">> %s\n", q.command)
 	_, err = q.s.writer.WriteString(q.command + "\r\n")
 	if err != nil {
 		return
@@ -63,9 +63,7 @@ func (q *query) Exec() (res string, err error) {
 			if !ok {
 				return "", errors.New("SK command read error")
 			}
-			if q.debug {
-				fmt.Printf("<< %s\n", line)
-			}
+			q.debugf("<< %s\n", line)
 			if strings.HasPrefix(line, "FAIL ") {
 				return "", fmt.Errorf("SK command response error: %s", line)
 			}
@@ -75,9 +73,7 @@ func (q *query) Exec() (res string, err error) {
 				if errors.Is(err, RetryableError) {
 					q.retry--
 					if q.retry >= 0 {
-						if q.debug {
-							fmt.Printf("%+v\n", err)
-						}
+						q.warnf("%+v\n", err)
 						time.Sleep(q.retryInterval)
 						//本当はループにすべきなんだけど手抜きで再帰
 						return q.Exec()
@@ -90,5 +86,31 @@ func (q *query) Exec() (res string, err error) {
 				return
 			}
 		}
+	}
+}
+
+func (q *query) warnf(fmt string, v ...interface{}) {
+	if q.verbosity >= 1 {
+		q.logf(fmt, v...)
+	}
+}
+
+func (q *query) infof(fmt string, v ...interface{}) {
+	if q.verbosity >= 2 && q.logger != nil {
+		q.logf(fmt, v...)
+	}
+}
+
+func (q *query) debugf(fmt string, v ...interface{}) {
+	if q.verbosity >= 3 && q.logger != nil {
+		q.logf(fmt, v...)
+	}
+}
+
+func (q *query) logf(fmt string, v ...interface{}) {
+	if q.logger != nil {
+		q.logger.Printf(fmt, v...)
+	} else {
+		log.Printf(fmt, v...)
 	}
 }
