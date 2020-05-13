@@ -284,9 +284,14 @@ func (d *Device) Authenticate(opts ...Option) (err error) {
 func (d *Device) QuerySKCommand(cmd string, opts ...Option) (res string, err error) {
 	query, err := NewSKQuery(d, cmd, append(d.Options, opts...)...)
 	if err != nil {
+		d.warnf("Error for SK command %q: %+v", cmd, err)
 		return
 	}
-	return query.Exec()
+	res, err = query.Exec()
+	if err != nil {
+		d.warnf("Error for SK command %q: %+v", cmd, err)
+	}
+	return
 }
 
 func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err error) {
