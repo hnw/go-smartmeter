@@ -73,7 +73,7 @@ func (q *query) Exec() (res string, err error) {
 				if errors.Is(err, RetryableError) {
 					q.retry--
 					if q.retry >= 0 {
-						q.warnf("Error: %+v\n", err)
+						q.warnf("Ignorable error: %+v\n", err)
 						time.Sleep(q.retryInterval)
 						//本当はループにすべきなんだけど手抜きで再帰
 						return q.Exec()

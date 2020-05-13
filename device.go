@@ -320,9 +320,9 @@ func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err e
 		} else if strings.HasPrefix(line, "ERXUDP ") {
 			f, err := parseERXUDP(line)
 			if err != nil {
-				d.infof("ERXUDP Parse error: line=%s, err=%+v", line, err)
+				d.warnf("ERXUDP parse error: line=%q, err=%+v", line, err)
 			} else if !f.CorrespondTo(req) {
-				d.infof("ERXUDP error: f=%+v, req=%+v", f, req)
+				d.infof("ERXUDP ignorable error: f=%+v, req=%+v", f, req)
 			} else {
 				res = f
 				return true, nil
