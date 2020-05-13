@@ -25,7 +25,7 @@ func NewSKQuery(s *Device, command string, opts ...Option) (*query, error) {
 	q := &query{
 		s:             s,
 		command:       command,
-		retryInterval: 2 * time.Second,
+		retryInterval: 1 * time.Second,
 		timeout:       10 * time.Second,
 		reader: func(line string) (bool, error) {
 			// デフォルreader。「OK」まで読む。SKコマンドの大半はこれで対応できる。
@@ -73,7 +73,7 @@ func (q *query) Exec() (res string, err error) {
 				if errors.Is(err, RetryableError) {
 					q.retry--
 					if q.retry >= 0 {
-						q.warnf("%+v\n", err)
+						q.warnf("Error: %+v\n", err)
 						time.Sleep(q.retryInterval)
 						//本当はループにすべきなんだけど手抜きで再帰
 						return q.Exec()
