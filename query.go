@@ -44,7 +44,7 @@ func NewSKQuery(s *Device, command string, opts ...Option) (*query, error) {
 }
 
 func (q *query) Exec() (res string, err error) {
-	q.debugf(">> %s\n", q.command)
+	q.debugf(">> %q\n", q.command)
 	_, err = q.s.writer.WriteString(q.command + "\r\n")
 	if err != nil {
 		return
@@ -63,7 +63,7 @@ func (q *query) Exec() (res string, err error) {
 			if !ok {
 				return "", errors.New("SK command read error")
 			}
-			q.debugf("<< %s\n", line)
+			q.debugf("<< %q\n", line)
 			if strings.HasPrefix(line, "FAIL ") {
 				return "", fmt.Errorf("SK command response error: %s", line)
 			}
