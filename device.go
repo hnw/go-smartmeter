@@ -182,7 +182,7 @@ func (d *Device) getIPAddrFromMacAddr(opts ...Option) (ipAddr string, err error)
 	res, err := d.QuerySKCommand("SKLL64 "+d.macAddr, opts...)
 	ipAddr = reIPAddr.FindString(res)
 	if ipAddr == "" {
-		err = fmt.Errorf(`IP address is invalid: "%s"`, res)
+		err = fmt.Errorf(`IP address is invalid: %q`, res)
 	}
 	return
 }
@@ -318,10 +318,10 @@ func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err e
 			// EVENT 21: UDP送信完了
 			if strings.HasSuffix(line, " 01") {
 				// 01: UDP送信失敗
-				return false, fmt.Errorf("Failed to send UDP packet (EVENT 21/01). %w", line, RetryableError)
+				return false, fmt.Errorf("Failed to send UDP packet (EVENT 21/01). %w", RetryableError)
 			} else if strings.HasSuffix(line, " 02") {
 				// 02: アドレス要請
-				return false, fmt.Errorf("PANA unconnected (EVENT 21/02)", line)
+				return false, fmt.Errorf("PANA unconnected (EVENT 21/02)")
 			}
 		} else if strings.HasPrefix(line, "ERXUDP ") {
 			f, err := parseERXUDP(line)
