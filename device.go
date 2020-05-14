@@ -118,7 +118,7 @@ func (d *Device) GetInfo(opts ...Option) (info string, err error) {
 
 func (d *Device) GetRegisterValue(regName string, opts ...Option) (registerValue string, err error) {
 	if !strings.HasPrefix(regName, "S") {
-		return "", fmt.Errorf("Invalid register name: %s")
+		return "", fmt.Errorf("Invalid register name: %s", regName)
 	}
 	res, err := d.QuerySKCommand("SKSREG "+regName, opts...)
 	if err != nil {
@@ -135,7 +135,7 @@ func (d *Device) GetRegisterValue(regName string, opts ...Option) (registerValue
 
 func (d *Device) SetRegisterValue(regName string, regValue string, opts ...Option) (err error) {
 	if !strings.HasPrefix(regName, "S") {
-		return fmt.Errorf("Invalid register name: %s")
+		return fmt.Errorf("Invalid register name: %s", regName)
 	}
 	cmd := fmt.Sprintf("SKSREG %s %s", regName, regValue)
 	_, err = d.QuerySKCommand(cmd, opts...)

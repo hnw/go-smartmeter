@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"reflect"
+	"sort"
 	"time"
 )
 
@@ -139,15 +141,17 @@ func (f *Frame) CorrespondTo(target *Frame) bool {
 		// TODO: プロパティ数が多すぎるとレスポンスが分割されるので(?)一致しないことがある
 		return false
 	}
-	/*
-		opc := len(f.Properties)
-		for i := 0; i < opc; i++ {
-			if f.Properties[i] != target.Properties[i] {
-				return false
-			}
-		}
-	*/
-	return true
+
+	opc := len(f.Properties)
+	epcs1 := make([]int, opc)
+	epcs2 := make([]int, opc)
+	for i := 0; i < opc; i++ {
+		epcs1[i] = int(f.Properties[i].EPC)
+		epcs2[i] = int(target.Properties[i].EPC)
+	}
+	sort.Ints(epcs1)
+	sort.Ints(epcs2)
+	return reflect.DeepEqual(epcs1, epcs2)
 }
 
 // RegenerateTID はFrameのTIDを再生成する
