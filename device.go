@@ -318,15 +318,15 @@ func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err e
 			// EVENT 21: UDP送信完了
 			if strings.HasSuffix(line, " 01") {
 				// 01: UDP送信失敗
-				return false, fmt.Errorf("Failed to send UDP packet (%s). %w", line, RetryableError)
+				return false, fmt.Errorf("Failed to send UDP packet (EVENT 21/01). %w", line, RetryableError)
 			} else if strings.HasSuffix(line, " 02") {
 				// 02: アドレス要請
-				return false, fmt.Errorf("PANA unconnected (%s)", line)
+				return false, fmt.Errorf("PANA unconnected (EVENT 21/02)", line)
 			}
 		} else if strings.HasPrefix(line, "ERXUDP ") {
 			f, err := parseERXUDP(line)
 			if err != nil {
-				d.warnf("ERXUDP parse error: line=%q, err=%+v", line, err)
+				d.warnf("ERXUDP parse error: cmd=%q, err=%+v", cmd, err)
 			} else if !f.CorrespondTo(req) {
 				d.infof("ERXUDP ignorable error: f=%+v, req=%+v", f, req)
 			} else {
