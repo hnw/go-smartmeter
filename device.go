@@ -178,8 +178,8 @@ func (d *Device) getIPAddrFromMacAddr(opts ...Option) (ipAddr string, err error)
 		// SKLL64コマンドだけはOKを返さず、直後の1行がレスポンス
 		return true, nil
 	}
-	opts = append([]Option{Reader(callback)}, opts...)
-	res, err := d.QuerySKCommand("SKLL64 "+d.macAddr, opts...)
+	skll64Opts := append([]Option{Reader(callback)}, opts...)
+	res, err := d.QuerySKCommand("SKLL64 "+d.macAddr, skll64Opts...)
 	ipAddr = reIPAddr.FindString(res)
 	if ipAddr == "" {
 		err = fmt.Errorf(`IP address is invalid: %q`, res)
@@ -221,8 +221,8 @@ func (d *Device) Scan(opts ...Option) (err error) {
 		}
 		return false, nil
 	}
-	opts = append([]Option{Reader(callback)}, opts...)
-	res, err := d.QuerySKCommand(cmd, opts...)
+	skscanOpts := append([]Option{Reader(callback)}, opts...)
+	res, err := d.QuerySKCommand(cmd, skscanOpts...)
 	if err != nil {
 		return
 	}
@@ -261,8 +261,8 @@ func (d *Device) Join(opts ...Option) (err error) {
 		}
 		return false, nil
 	}
-	opts = append([]Option{Reader(callback)}, opts...)
-	_, err = d.QuerySKCommand("SKJOIN "+d.IPAddr, opts...)
+	joinOpts := append([]Option{Reader(callback)}, opts...)
+	_, err = d.QuerySKCommand("SKJOIN "+d.IPAddr, joinOpts...)
 	return
 }
 
@@ -336,8 +336,8 @@ func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err e
 		}
 		return false, nil
 	}
-	opts = append([]Option{Reader(callback)}, opts...)
-	_, err = d.QuerySKCommand(cmd, opts...)
+	echonetLiteOpts := append([]Option{Reader(callback)}, opts...)
+	_, err = d.QuerySKCommand(cmd, echonetLiteOpts...)
 	return
 }
 
