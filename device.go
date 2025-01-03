@@ -176,6 +176,10 @@ func (d *Device) GetNeibourIP(opts ...Option) (ipAddr string, err error) {
 func (d *Device) getIPAddrFromMacAddr(opts ...Option) (ipAddr string, err error) {
 	callback := func(line string) (bool, error) {
 		// SKLL64コマンドだけはOKを返さず、直後の1行がレスポンス
+		if strings.HasPrefix(line, "SKLL64") {
+			// エコーバックは無視
+			return false, nil
+		}
 		return true, nil
 	}
 	skll64Opts := append([]Option{Reader(callback)}, opts...)
