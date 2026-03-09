@@ -1,17 +1,18 @@
 package smartmeter
 
 import (
-	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math/rand"
 	"reflect"
 	"sort"
-	"time"
 )
 
+// ClassCode identifies an ECHONET Lite class code.
 type ClassCode uint32
+
+// ServiceCode identifies an ECHONET Lite service code.
 type ServiceCode byte
 
 /*
@@ -21,8 +22,9 @@ type ServiceCode byte
  *   ECHONET Lite規格書 『APPENDIX ECHONET機器オブジェクト詳細規定 Release I』「3.3.25 低圧スマート電力量メータクラス規定」
  */
 
+// ECHONET Lite constants.
 const (
-	HeaderEchonetLite                      = 0x1081   // 0x10=ECHONET Lite, 0x81=電文形式1
+	HeaderEchonetLite          uint16      = 0x1081   // 0x10=ECHONET Lite, 0x81=電文形式1
 	Controller                 ClassCode   = 0x05ff01 // コントローラ
 	NodeProfile                ClassCode   = 0x0ef001 // ノードプロファイル
 	LvSmartElectricEnergyMeter ClassCode   = 0x028801 // 低圧スマート電力量メータ
@@ -30,8 +32,8 @@ const (
 	GetRes                     ServiceCode = 0x72
 )
 
-// Frame はECHONET Liteのフレームに対応する構造体
-// 複数のプロパティの操作を1フレームにまとめて送信することができる
+// Frame はECHONET Liteのフレームに対応する構造体。
+// 複数のプロパティの操作を1フレームにまとめて送信することができる。
 type Frame struct {
 	TID        uint16      // トランザクションID
 	SEOJ       ClassCode   // 送信元ECHONET Liteオブジェクト
@@ -40,7 +42,7 @@ type Frame struct {
 	Properties []*Property // ECHONETプロパティ
 }
 
-// NewFrame は Frame構造体のコンストラクタ関数
+// NewFrame は Frame構造体のコンストラクタ関数。
 func NewFrame(dstClassCode ClassCode, esv ServiceCode, props []*Property) *Frame {
 	f := &Frame{
 		SEOJ:       Controller,
@@ -52,13 +54,13 @@ func NewFrame(dstClassCode ClassCode, esv ServiceCode, props []*Property) *Frame
 	return f
 }
 
-// ParseFrame は ECHONET Liteフレームのバイト列を受け取り、Frame構造体として返す
+// ParseFrame は ECHONET Liteフレームのバイト列を受け取り、Frame構造体として返す。
 func ParseFrame(raw []byte) (f *Frame, err error) {
 	if len(raw) < 14 {
-		return nil, errors.New("Too short ECHONET Lite frame")
+		return nil, errors.New("too short ECHONET Lite frame")
 	}
 	if binary.BigEndian.Uint16(raw[0:2]) != HeaderEchonetLite {
-		return nil, fmt.Errorf("Unknown ECHONET Lite Header: %02X%02X", raw[0], raw[1])
+		return nil, fmt.Errorf("unknown ECHONET Lite header: %02X%02X", raw[0], raw[1])
 	}
 	// トランザクションID
 	tid := binary.BigEndian.Uint16(raw[2:4])
@@ -79,13 +81,13 @@ func ParseFrame(raw []byte) (f *Frame, err error) {
 	i := 12
 	for j := 0; j < nProperty; j++ {
 		if len(raw) < i+2 {
-			err = errors.New("Too short ECHONET Lite frame")
+			err = errors.New("too short ECHONET Lite frame")
 			return
 		}
 		// プロパティデータカウンタ (PDC)
 		lenEDT := int(raw[i+1])
 		if len(raw) < i+2+lenEDT {
-			err = errors.New("Too short ECHONET Lite frame")
+			err = errors.New("too short ECHONET Lite frame")
 			return
 		}
 		// プロパティ値データ(EDT)
@@ -97,29 +99,28 @@ func ParseFrame(raw []byte) (f *Frame, err error) {
 	return &Frame{TID: tid, SEOJ: seoj, DEOJ: deoj, ESV: esv, Properties: props}, nil
 }
 
+// Build はフレームをバイト列として組み立てる。
 func (f *Frame) Build() []byte {
-	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, uint16(HeaderEchonetLite))
+	buf := make([]byte, 0, 12+len(f.Properties)*2)
+	buf = appendUint16(buf, HeaderEchonetLite)
 	// トランザクションID
-	binary.Write(buf, binary.BigEndian, f.TID)
+	buf = appendUint16(buf, f.TID)
 	// 送信元ECHONET Liteオブジェクト
-	binary.Write(buf, binary.BigEndian, uint8(f.SEOJ>>16&0xff))
-	binary.Write(buf, binary.BigEndian, uint16(f.SEOJ&0xffff))
+	buf = appendUint24(buf, uint32(f.SEOJ))
 	// 相手先ECHONET Liteオブジェクト
-	binary.Write(buf, binary.BigEndian, uint8(f.DEOJ>>16&0xff))
-	binary.Write(buf, binary.BigEndian, uint16(f.DEOJ&0xffff))
+	buf = appendUint24(buf, uint32(f.DEOJ))
 	// ECHONET Liteサービス
-	binary.Write(buf, binary.BigEndian, f.ESV)
+	buf = append(buf, byte(f.ESV))
 	// 処理対象プロパティカウンタ (OPC)
 	nProperty := len(f.Properties)
-	binary.Write(buf, binary.BigEndian, uint8(nProperty))
+	buf = append(buf, byte(nProperty))
 	for i := 0; i < nProperty; i++ {
-		buf.Write(f.Properties[i].Build())
+		buf = append(buf, f.Properties[i].Build()...)
 	}
-	return buf.Bytes()
+	return buf
 }
 
-// CorrespondTo は fとtargetとがリクエスト/レスポンスとして対応しているか確認する
+// CorrespondTo は fとtargetとがリクエスト/レスポンスとして対応しているか確認する。
 func (f *Frame) CorrespondTo(target *Frame) bool {
 	if f.TID != target.TID {
 		return false
@@ -154,8 +155,21 @@ func (f *Frame) CorrespondTo(target *Frame) bool {
 	return reflect.DeepEqual(epcs1, epcs2)
 }
 
-// RegenerateTID はFrameのTIDを再生成する
+// RegenerateTID はFrameのTIDを再生成する。
 func (f *Frame) RegenerateTID() {
-	rand.Seed(time.Now().UnixNano()) // 時刻をseedにする（ランダム性・予測不可能性が重要ではないため）
-	f.TID = uint16(rand.Int31n(0x10000))
+	var b [2]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		f.TID = 0
+		return
+	}
+	f.TID = binary.BigEndian.Uint16(b[:])
+}
+
+func appendUint16(dst []byte, v uint16) []byte {
+	return append(dst, byte(v>>8), byte(v))
+}
+
+func appendUint24(dst []byte, v uint32) []byte {
+	v &= 0x00ffffff
+	return append(dst, byte(v>>16), byte(v>>8), byte(v))
 }

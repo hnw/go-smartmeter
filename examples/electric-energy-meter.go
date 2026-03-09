@@ -1,4 +1,6 @@
+//go:build example
 // +build example
+
 //
 // Do not build by default.
 
@@ -15,12 +17,11 @@ import (
 
 func main() {
 	dev, err := smartmeter.Open("/dev/ttyACM0",
-		//smartmeter.Verbosity(3),                           // コマンドとレスポンスを全部確認したいときにアンコメントする
+		// smartmeter.Verbosity(3),                           // コマンドとレスポンスを全部確認したいときにアンコメントする
 		smartmeter.DualStackSK(true),                      // Bルート専用モジュールを使う場合はコメントアウト
 		smartmeter.ID("00000000000000000000000000000000"), // Bルート認証ID
 		smartmeter.Password("AB0123456789"),               // パスワード
 		smartmeter.Channel("33"))                          // チャンネル。各環境でScan()で取得した値に書き換える。
-
 	if err != nil {
 		fmt.Printf("%+v", err)
 		return
@@ -34,7 +35,7 @@ func main() {
 	}
 
 	request := smartmeter.NewFrame(smartmeter.LvSmartElectricEnergyMeter, smartmeter.Get, []*smartmeter.Property{
-		smartmeter.NewProperty(smartmeter.LvSmartElectricEnergyMeter_InstantaneousElectricPower, nil),
+		smartmeter.NewProperty(smartmeter.LvSmartElectricEnergyMeterInstantaneousElectricPower, nil),
 	})
 	// 瞬時電力計測値を表示し続ける。作者の環境では2〜6秒に1回のペースで値が取得できます。
 	for {

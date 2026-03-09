@@ -19,9 +19,11 @@ type query struct {
 	verbosity     int
 }
 
-var RetryableError = errors.New("Retrying...")
+// ErrRetryable marks an error that should trigger a retry.
+var ErrRetryable = errors.New("retrying")
 
-func NewSKQuery(s *Device, command string, opts ...Option) (*query, error) {
+// newSKQuery creates a new query for an SK command.
+func newSKQuery(s *Device, command string, opts ...Option) (*query, error) {
 	q := &query{
 		s:             s,
 		command:       command,
@@ -70,19 +72,19 @@ func (q *query) Exec() (res string, err error) {
 			var ret bool
 			ret, err = q.reader(line)
 			if err != nil {
-				if errors.Is(err, RetryableError) {
+				if errors.Is(err, ErrRetryable) {
 					q.retry--
 					if q.retry >= 0 {
 						q.warnf("Ignorable error: %+v\n", err)
 						time.Sleep(q.retryInterval)
-						//本当はループにすべきなんだけど手抜きで再帰
+						// 本当はループにすべきなんだけど手抜きで再帰
 						return q.Exec()
 					}
 				}
 				return
 			}
 			res += "\n" + line
-			if ret == true {
+			if ret {
 				return
 			}
 		}
@@ -91,12 +93,6 @@ func (q *query) Exec() (res string, err error) {
 
 func (q *query) warnf(fmt string, v ...interface{}) {
 	if q.verbosity >= 1 {
-		q.logf(fmt, v...)
-	}
-}
-
-func (q *query) infof(fmt string, v ...interface{}) {
-	if q.verbosity >= 2 && q.logger != nil {
 		q.logf(fmt, v...)
 	}
 }

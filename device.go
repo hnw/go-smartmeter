@@ -1,3 +1,4 @@
+// Package smartmeter provides an ECHONET Lite client for smart meters.
 package smartmeter
 
 import (
@@ -14,8 +15,9 @@ import (
 )
 
 var (
-	reVersion        = regexp.MustCompile(`(?m)^EVER\s+(.*)$`)
-	reInfo           = regexp.MustCompile(`(?m)^EINFO\s+(.*)$`) // <IPADDR> + <ADDR64> + <CHANNEL> + <PANID> + <ADDR16>
+	reVersion = regexp.MustCompile(`(?m)^EVER\s+(.*)$`)
+	// <IPADDR> + <ADDR64> + <CHANNEL> + <PANID> + <ADDR16>
+	reInfo           = regexp.MustCompile(`(?m)^EINFO\s+(.*)$`)
 	reRegisterValue  = regexp.MustCompile(`(?m)^ESREG\s+(.*)$`)
 	rePanDesc        = regexp.MustCompile(`(?m)^EPANDESC$`)
 	rePanChannel     = regexp.MustCompile(`(?m)^\s+Channel:([23][0-9A-F])$`)
@@ -23,10 +25,14 @@ var (
 	rePanMacAddr     = regexp.MustCompile(`(?m)^\s+Addr:(.*)$`)
 	reIPAddr         = regexp.MustCompile(`(?m)^(?:[\dA-F]{4}:){7}[\dA-F]{4}$`)
 	reNeibour        = regexp.MustCompile(`(?m)^((?:[\dA-F]{4}:){7}[\dA-F]{4}) [\dA-F]{16} FFFF$`)
-	reEchonetLiteUDP = regexp.MustCompile(`(?m)^ERXUDP (?:[\dA-F]{4}:){7}[\dA-F]{4} (?:[\dA-F]{4}:){7}[\dA-F]{4} 0E1A 0E1A [\dA-F]{16} \d(?: \d+)? ([\dA-F]+) (.*)$`)
+	reEchonetLiteUDP = regexp.MustCompile(
+		`(?m)^ERXUDP (?:[\dA-F]{4}:){7}[\dA-F]{4} ` +
+			`(?:[\dA-F]{4}:){7}[\dA-F]{4} 0E1A 0E1A [\dA-F]{16} ` +
+			`\d(?: \d+)? ([\dA-F]+) (.*)$`,
+	)
 )
 
-// Device
+// Device represents a smart meter connection and its settings.
 type Device struct {
 	SerialPort  string
 	ID          string
@@ -44,6 +50,7 @@ type Device struct {
 	writer    *bufio.Writer
 }
 
+// Open opens the serial port and returns a Device configured with opts.
 func Open(path string, opts ...Option) (d *Device, err error) {
 	c := &serial.Config{
 		Name:     path,
@@ -72,7 +79,11 @@ func Open(path string, opts ...Option) (d *Device, err error) {
 
 	go func() {
 		defer close(ch)
-		defer sr.Close()
+		defer func() {
+			if err := sr.Close(); err != nil {
+				log.Printf("smartmeter: failed to close serial port: %v", err)
+			}
+		}()
 
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -88,6 +99,7 @@ func Open(path string, opts ...Option) (d *Device, err error) {
 	return
 }
 
+// GetVersion returns the version string from SKVER.
 func (d *Device) GetVersion(opts ...Option) (version string, err error) {
 	res, err := d.QuerySKCommand("SKVER", opts...)
 	if err != nil {
@@ -95,13 +107,14 @@ func (d *Device) GetVersion(opts ...Option) (version string, err error) {
 	}
 	matched := reVersion.FindStringSubmatch(res)
 	if len(matched) == 0 {
-		err = fmt.Errorf("Unexpected response for SKVER: %s", res)
+		err = fmt.Errorf("unexpected response for SKVER: %s", res)
 	} else {
 		version = matched[1]
 	}
 	return
 }
 
+// GetInfo returns the info string from SKINFO.
 func (d *Device) GetInfo(opts ...Option) (info string, err error) {
 	res, err := d.QuerySKCommand("SKINFO", opts...)
 	if err != nil {
@@ -109,16 +122,20 @@ func (d *Device) GetInfo(opts ...Option) (info string, err error) {
 	}
 	matched := reInfo.FindStringSubmatch(res)
 	if len(matched) == 0 {
-		err = fmt.Errorf("Unexpected response for SKINFO: %s", res)
+		err = fmt.Errorf("unexpected response for SKINFO: %s", res)
 	} else {
 		info = matched[1]
 	}
 	return
 }
 
-func (d *Device) GetRegisterValue(regName string, opts ...Option) (registerValue string, err error) {
+// GetRegisterValue returns a register value from SKSREG.
+func (d *Device) GetRegisterValue(
+	regName string,
+	opts ...Option,
+) (registerValue string, err error) {
 	if !strings.HasPrefix(regName, "S") {
-		return "", fmt.Errorf("Invalid register name: %s", regName)
+		return "", fmt.Errorf("invalid register name: %s", regName)
 	}
 	res, err := d.QuerySKCommand("SKSREG "+regName, opts...)
 	if err != nil {
@@ -126,39 +143,43 @@ func (d *Device) GetRegisterValue(regName string, opts ...Option) (registerValue
 	}
 	matched := reRegisterValue.FindStringSubmatch(res)
 	if len(matched) == 0 {
-		err = fmt.Errorf("Unexpected response for SKSREG: %s", res)
+		err = fmt.Errorf("unexpected response for SKSREG: %s", res)
 	} else {
 		registerValue = matched[1]
 	}
 	return
 }
 
+// SetRegisterValue sets a register value via SKSREG.
 func (d *Device) SetRegisterValue(regName string, regValue string, opts ...Option) (err error) {
 	if !strings.HasPrefix(regName, "S") {
-		return fmt.Errorf("Invalid register name: %s", regName)
+		return fmt.Errorf("invalid register name: %s", regName)
 	}
 	cmd := fmt.Sprintf("SKSREG %s %s", regName, regValue)
 	_, err = d.QuerySKCommand(cmd, opts...)
 	return
 }
 
+// SetID sets the B-route authentication ID on the device.
 func (d *Device) SetID(opts ...Option) (err error) {
 	if d.ID == "" {
-		return errors.New("ID not specifed")
+		return errors.New("id not specified")
 	}
 	_, err = d.QuerySKCommand("SKSETRBID "+d.ID, opts...)
 	return
 }
 
+// SetPassword sets the B-route authentication password on the device.
 func (d *Device) SetPassword(opts ...Option) (err error) {
 	if d.Password == "" {
-		return errors.New("Password not specifed")
+		return errors.New("password not specified")
 	}
 	cmd := fmt.Sprintf("SKSETPWD %X %s", len(d.Password), d.Password)
 	_, err = d.QuerySKCommand(cmd, opts...)
 	return
 }
 
+// GetNeibourIP returns the neighbor IP address from SKTABLE 2.
 func (d *Device) GetNeibourIP(opts ...Option) (ipAddr string, err error) {
 	res, err := d.QuerySKCommand("SKTABLE 2", opts...)
 	if err != nil {
@@ -166,7 +187,7 @@ func (d *Device) GetNeibourIP(opts ...Option) (ipAddr string, err error) {
 	}
 	matched := reNeibour.FindAllStringSubmatch(res, -1)
 	if len(matched) != 1 {
-		err = fmt.Errorf("Unexpected response for SKSREG: %s", res)
+		err = fmt.Errorf("unexpected response for SKTABLE 2: %s", res)
 	} else {
 		ipAddr = matched[0][1]
 	}
@@ -174,7 +195,7 @@ func (d *Device) GetNeibourIP(opts ...Option) (ipAddr string, err error) {
 }
 
 func (d *Device) getIPAddrFromMacAddr(opts ...Option) (ipAddr string, err error) {
-	callback := func(line string) (bool, error) {
+	callback := func(_ string) (bool, error) {
 		// SKLL64コマンドだけはOKを返さず、直後の1行がレスポンス
 		return true, nil
 	}
@@ -182,11 +203,12 @@ func (d *Device) getIPAddrFromMacAddr(opts ...Option) (ipAddr string, err error)
 	res, err := d.QuerySKCommand("SKLL64 "+d.macAddr, skll64Opts...)
 	ipAddr = reIPAddr.FindString(res)
 	if ipAddr == "" {
-		err = fmt.Errorf(`IP address is invalid: %q`, res)
+		err = fmt.Errorf(`ip address is invalid: %q`, res)
 	}
 	return
 }
 
+// Scan performs an active scan and populates channel, PAN ID, MAC address, and IP address.
 func (d *Device) Scan(opts ...Option) (err error) {
 	if err = d.SetID(); err != nil {
 		return
@@ -201,10 +223,10 @@ func (d *Device) Scan(opts ...Option) (err error) {
 		var i int64
 		i, err = strconv.ParseInt(d.Channel, 16, 0)
 		if err != nil {
-			err = fmt.Errorf(`Specified channel is invalid: "%s"`, d.Channel)
+			err = fmt.Errorf(`specified channel is invalid: "%s"`, d.Channel)
 			return
 		} else if i < 33 || i > 60 {
-			err = fmt.Errorf(`Channel must be 21-3C: "%s"`, d.Channel)
+			err = fmt.Errorf(`channel must be 21-3C: "%s"`, d.Channel)
 			return
 		}
 		mask = 1 << (i - 33)
@@ -227,7 +249,7 @@ func (d *Device) Scan(opts ...Option) (err error) {
 		return
 	}
 	if !rePanDesc.MatchString(res) {
-		err = fmt.Errorf(`Scan failed. Response is: "%s"`, res)
+		err = fmt.Errorf(`scan failed. response is: "%s"`, res)
 		return
 	}
 
@@ -235,7 +257,12 @@ func (d *Device) Scan(opts ...Option) (err error) {
 	panID := rePanID.FindStringSubmatch(res)[1]
 	macAddr := rePanMacAddr.FindStringSubmatch(res)[1]
 	if channel == "" || panID == "" || macAddr == "" {
-		err = fmt.Errorf(`Channel or PAN ID or MAC address is invalid: "%s", "%s", "%s"`, channel, panID, macAddr)
+		err = fmt.Errorf(
+			`channel or PAN ID or MAC address is invalid: "%s", "%s", "%s"`,
+			channel,
+			panID,
+			macAddr,
+		)
 		return
 	}
 	d.Channel = channel
@@ -250,11 +277,12 @@ func (d *Device) Scan(opts ...Option) (err error) {
 	return
 }
 
+// Join connects to the meter using SKJOIN.
 func (d *Device) Join(opts ...Option) (err error) {
 	callback := func(line string) (bool, error) {
 		if strings.HasPrefix(line, "EVENT 24 ") {
 			// EVENT 24: PANAによる接続過程でエラーが発生した
-			return false, fmt.Errorf("PANA connection error (%s). %w", line, RetryableError)
+			return false, fmt.Errorf("pana connection error (%s). %w", line, ErrRetryable)
 		} else if strings.HasPrefix(line, "EVENT 25 ") {
 			// EVENT 25: PANAによる接続が完了した（Join成功）
 			return true, nil
@@ -266,6 +294,7 @@ func (d *Device) Join(opts ...Option) (err error) {
 	return
 }
 
+// Authenticate performs scan, register configuration, and join.
 func (d *Device) Authenticate(opts ...Option) (err error) {
 	err = d.Scan(opts...)
 	if err != nil {
@@ -282,8 +311,9 @@ func (d *Device) Authenticate(opts ...Option) (err error) {
 	return d.Join(opts...)
 }
 
+// QuerySKCommand sends an SK command and returns the response text.
 func (d *Device) QuerySKCommand(cmd string, opts ...Option) (res string, err error) {
-	query, err := NewSKQuery(d, cmd, append(d.options, opts...)...)
+	query, err := newSKQuery(d, cmd, append(d.options, opts...)...)
 	if err != nil {
 		d.warnf("Error for SK command %q: %+v", cmd, err)
 		return
@@ -295,22 +325,40 @@ func (d *Device) QuerySKCommand(cmd string, opts ...Option) (res string, err err
 	return
 }
 
+// QueryEchonetLite sends an ECHONET Lite request and waits for the response.
 func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err error) {
 	secure := 1
 	port := 3610
 	side := 0 // 0: B-route, 1: HAN
 
 	if d.IPAddr == "" {
-		err = errors.New("IP address for smart electric energy meter is not specifed")
+		err = errors.New("ip address for smart electric energy meter is not specified")
 		return
 	}
 
 	rawFrame := req.Build()
 	var cmd string
 	if d.DualStackSK {
-		cmd = fmt.Sprintf("SKSENDTO %d %s %04X %d %d %04X %s", secure, d.IPAddr, port, secure, side, len(rawFrame), rawFrame)
+		cmd = fmt.Sprintf(
+			"SKSENDTO %d %s %04X %d %d %04X %s",
+			secure,
+			d.IPAddr,
+			port,
+			secure,
+			side,
+			len(rawFrame),
+			rawFrame,
+		)
 	} else {
-		cmd = fmt.Sprintf("SKSENDTO %d %s %04X %d %04X %s", secure, d.IPAddr, port, secure, len(rawFrame), rawFrame)
+		cmd = fmt.Sprintf(
+			"SKSENDTO %d %s %04X %d %04X %s",
+			secure,
+			d.IPAddr,
+			port,
+			secure,
+			len(rawFrame),
+			rawFrame,
+		)
 	}
 
 	callback := func(line string) (bool, error) {
@@ -318,19 +366,22 @@ func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err e
 			// EVENT 21: UDP送信完了
 			if strings.HasSuffix(line, " 01") {
 				// 01: UDP送信失敗
-				return false, fmt.Errorf("Failed to send UDP packet (EVENT 21/01). %w", RetryableError)
+				return false, fmt.Errorf(
+					"failed to send UDP packet (EVENT 21/01). %w",
+					ErrRetryable,
+				)
 			} else if strings.HasSuffix(line, " 02") {
 				// 02: アドレス要請
-				return false, fmt.Errorf("PANA unconnected (EVENT 21/02)")
+				return false, fmt.Errorf("pana unconnected (EVENT 21/02)")
 			}
 		} else if strings.HasPrefix(line, "ERXUDP ") {
-			f, err := parseERXUDP(line)
-			if err != nil {
-				d.warnf("ERXUDP parse error: cmd=%q, err=%+v", cmd, err)
-			} else if !f.CorrespondTo(req) {
-				d.infof("ERXUDP ignorable error: f=%+v, req=%+v", f, req)
+			frame, parseErr := parseERXUDP(line)
+			if parseErr != nil {
+				d.warnf("ERXUDP parse error: cmd=%q, err=%+v", cmd, parseErr)
+			} else if !frame.CorrespondTo(req) {
+				d.infof("ERXUDP ignorable error: f=%+v, req=%+v", frame, req)
 			} else {
-				res = f
+				res = frame
 				return true, nil
 			}
 		}
@@ -346,7 +397,7 @@ func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err e
 func parseERXUDP(line string) (res *Frame, err error) {
 	matched := reEchonetLiteUDP.FindStringSubmatch(line)
 	if len(matched) == 0 {
-		err = fmt.Errorf("Unknown ERXUDP format: %s", line)
+		err = fmt.Errorf("unknown ERXUDP format: %s", line)
 		return
 	}
 
@@ -382,12 +433,6 @@ func (d *Device) warnf(fmt string, v ...interface{}) {
 
 func (d *Device) infof(fmt string, v ...interface{}) {
 	if d.Verbosity >= 2 && d.logger != nil {
-		d.logf(fmt, v...)
-	}
-}
-
-func (d *Device) debugf(fmt string, v ...interface{}) {
-	if d.Verbosity >= 3 && d.logger != nil {
 		d.logf(fmt, v...)
 	}
 }

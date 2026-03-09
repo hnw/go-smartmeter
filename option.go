@@ -9,8 +9,10 @@ import (
 	"time"
 )
 
+// Option configures a Device or query.
 type Option func(interface{}) error
 
+// ID sets the B-route authentication ID.
 func ID(id string) Option {
 	return func(tgt interface{}) error {
 		if d, ok := tgt.(*Device); ok {
@@ -20,6 +22,7 @@ func ID(id string) Option {
 	}
 }
 
+// Password sets the B-route authentication password.
 func Password(pw string) Option {
 	return func(tgt interface{}) error {
 		if d, ok := tgt.(*Device); ok {
@@ -29,6 +32,7 @@ func Password(pw string) Option {
 	}
 }
 
+// Channel sets the channel used for scanning or joining.
 func Channel(channel string) Option {
 	return func(tgt interface{}) error {
 		if d, ok := tgt.(*Device); ok {
@@ -38,6 +42,7 @@ func Channel(channel string) Option {
 	}
 }
 
+// IPAddr sets the IPv6 address of the smart meter.
 func IPAddr(ipAddr string) Option {
 	return func(tgt interface{}) error {
 		if d, ok := tgt.(*Device); ok {
@@ -47,6 +52,7 @@ func IPAddr(ipAddr string) Option {
 	}
 }
 
+// DualStackSK enables or disables the dual stack SK behavior.
 func DualStackSK(v bool) Option {
 	return func(tgt interface{}) error {
 		if d, ok := tgt.(*Device); ok {
@@ -56,6 +62,7 @@ func DualStackSK(v bool) Option {
 	}
 }
 
+// Retry sets how many times a query should retry on ErrRetryable.
 func Retry(count int) Option {
 	return func(tgt interface{}) error {
 		if q, ok := tgt.(*query); ok {
@@ -65,6 +72,7 @@ func Retry(count int) Option {
 	}
 }
 
+// RetryInterval sets the duration between retries.
 func RetryInterval(d time.Duration) Option {
 	return func(tgt interface{}) error {
 		if q, ok := tgt.(*query); ok {
@@ -74,6 +82,7 @@ func RetryInterval(d time.Duration) Option {
 	}
 }
 
+// Timeout sets the query timeout duration.
 func Timeout(d time.Duration) Option {
 	return func(tgt interface{}) error {
 		if q, ok := tgt.(*query); ok {
@@ -83,6 +92,7 @@ func Timeout(d time.Duration) Option {
 	}
 }
 
+// Reader sets a custom line reader callback for SK command responses.
 func Reader(callback func(string) (bool, error)) Option {
 	return func(tgt interface{}) error {
 		if q, ok := tgt.(*query); ok {
@@ -92,6 +102,7 @@ func Reader(callback func(string) (bool, error)) Option {
 	}
 }
 
+// Logger sets the logger for Device and query.
 func Logger(logger *log.Logger) Option {
 	return func(tgt interface{}) error {
 		if d, ok := tgt.(*Device); ok {
@@ -104,6 +115,7 @@ func Logger(logger *log.Logger) Option {
 	}
 }
 
+// Verbosity sets the logging verbosity for Device and query.
 func Verbosity(v int) Option {
 	return func(tgt interface{}) error {
 		if d, ok := tgt.(*Device); ok {

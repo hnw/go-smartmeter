@@ -1,4 +1,6 @@
+//go:build example
 // +build example
+
 //
 // Do not build by default.
 
@@ -19,7 +21,6 @@ func main() {
 		smartmeter.DualStackSK(true),                      // Bルート専用モジュールを使う場合はコメントアウト
 		smartmeter.ID("00000000000000000000000000000000"), // ルートB認証ID
 		smartmeter.Password("AB0123456789"))               // パスワード
-
 	if err != nil {
 		fmt.Printf("%+v", err)
 		return
