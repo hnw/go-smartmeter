@@ -1,0 +1,35 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+    - golines
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - revive
+    - gocyclo
+    - gosec
+
+  settings:
+    govet:
+      enable:
+        - shadow
+    gocyclo:
+      min-complexity: 15
+
+  exclusions:
+    paths:
+      - vendor
+      - ".*\\.pb\\.go$"
+      - ".*\\.gen\\.go$"
