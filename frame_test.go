@@ -132,3 +132,35 @@ func TestEchoFrameCorrespondTo(t *testing.T) {
 		)
 	}
 }
+
+func TestParseERXUDP(t *testing.T) {
+	// A valid Echonet Lite response
+	validLine := "ERXUDP FE80:0000:0000:0000:021D:1290:0004:4B72 FE80:0000:0000:0000:021D:1290:0004:4B73 0E1A 0E1A 001D129000044B72 1 0012 1081000102880105FF017201E80400140064"
+	frame, err := parseERXUDP(validLine)
+	if err != nil {
+		t.Errorf("parseERXUDP() unexpected error: %v", err)
+	}
+	if frame == nil {
+		t.Errorf("parseERXUDP() returned nil frame for valid input")
+	}
+
+	// Not echonet lite due to diff port
+	nonEchonetLine := "ERXUDP FE80:0000:0000:0000:021D:1290:0004:4B72 FE80:0000:0000:0000:021D:1290:0004:4B73 0050 0E1A 001D129000044B72 1 0012 1081000102880105FF017201E80400140064"
+	frame, err = parseERXUDP(nonEchonetLine)
+	if err != errNonEchonetLiteERXUDP {
+		t.Errorf("parseERXUDP() error = %v, want %v", err, errNonEchonetLiteERXUDP)
+	}
+	if frame != nil {
+		t.Errorf("parseERXUDP() expected nil frame for non-echonet lite input")
+	}
+
+	// Invalid format
+	invalidLine := "ERXUDP something else"
+	frame, err = parseERXUDP(invalidLine)
+	if err == nil {
+		t.Errorf("parseERXUDP() expected error, got nil")
+	}
+	if frame != nil {
+		t.Errorf("parseERXUDP() expected nil frame on error")
+	}
+}

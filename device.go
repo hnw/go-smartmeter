@@ -27,9 +27,10 @@ var (
 	reNeibour        = regexp.MustCompile(`(?m)^((?:[\dA-F]{4}:){7}[\dA-F]{4}) [\dA-F]{16} FFFF$`)
 	reEchonetLiteUDP = regexp.MustCompile(
 		`(?m)^ERXUDP (?:[\dA-F]{4}:){7}[\dA-F]{4} ` +
-			`(?:[\dA-F]{4}:){7}[\dA-F]{4} 0E1A 0E1A [\dA-F]{16} ` +
+			`(?:[\dA-F]{4}:){7}[\dA-F]{4} ([\dA-F]{4}) ([\dA-F]{4}) [\dA-F]{16} ` +
 			`\d(?: \d+)? ([\dA-F]+) (.*)$`,
 	)
+	errNonEchonetLiteERXUDP = errors.New("non-echonet ERXUDP")
 )
 
 // Device represents a smart meter connection and its settings.
@@ -377,6 +378,9 @@ func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err e
 		} else if strings.HasPrefix(line, "ERXUDP ") {
 			frame, parseErr := parseERXUDP(line)
 			if parseErr != nil {
+				if errors.Is(parseErr, errNonEchonetLiteERXUDP) {
+					return false, nil
+				}
 				d.warnf("ERXUDP parse error: cmd=%q, err=%+v", cmd, parseErr)
 			} else if !frame.CorrespondTo(req) {
 				d.infof("ERXUDP ignorable error: f=%+v, req=%+v", frame, req)
@@ -393,20 +397,24 @@ func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err e
 }
 
 // ERXUDPイベント行を受け取ってFrameを返す
-// ECHONET Liteのフレームのみ処理する
-func parseERXUDP(line string) (res *Frame, err error) {
+// ECHONET Liteのフレームのみ処理する（それ以外は errNonEchonetLiteERXUDP を返す）
+func parseERXUDP(line string) (*Frame, error) {
 	matched := reEchonetLiteUDP.FindStringSubmatch(line)
 	if len(matched) == 0 {
-		err = fmt.Errorf("unknown ERXUDP format: %s", line)
-		return
+		return nil, fmt.Errorf("unknown ERXUDP format: %s", line)
 	}
 
-	dataLen, err := strconv.ParseInt(matched[1], 16, 32)
-	if err != nil {
-		err = errors.New("ERXUDP parse error (not a number) : " + line)
-		return
+	srcPort := matched[1]
+	dstPort := matched[2]
+	if !strings.EqualFold(srcPort, "0E1A") || !strings.EqualFold(dstPort, "0E1A") {
+		return nil, errNonEchonetLiteERXUDP
 	}
-	data := matched[2]
+
+	dataLen, err := strconv.ParseInt(matched[3], 16, 32)
+	if err != nil {
+		return nil, fmt.Errorf("ERXUDP parse error (not a number) : %s", line)
+	}
+	data := matched[4]
 	var rawData []byte
 	if len(data) == int(dataLen) {
 		// WOPT 0（バイナリ）
@@ -415,12 +423,10 @@ func parseERXUDP(line string) (res *Frame, err error) {
 		// WOPT 1（16進ASCII）
 		rawData, err = hex.DecodeString(data)
 		if err != nil {
-			err = errors.New("ERXUDP parse error (not a hexadecimal) : " + line)
-			return
+			return nil, fmt.Errorf("ERXUDP parse error (not a hexadecimal) : %s", line)
 		}
 	} else {
-		err = errors.New("ERXUDP data length mismatch: " + line)
-		return
+		return nil, fmt.Errorf("ERXUDP data length mismatch: %s", line)
 	}
 	return ParseFrame(rawData)
 }
