@@ -42,7 +42,7 @@ func main() {
 	}
 
 	request := smartmeter.NewFrame(smartmeter.LvSmartElectricEnergyMeter, smartmeter.Get, []*smartmeter.Property{
-		smartmeter.NewProperty(smartmeter.LvSmartElectricEnergyMeter_InstantaneousElectricPower, nil),
+		smartmeter.NewProperty(smartmeter.LvSmartElectricEnergyMeterInstantaneousElectricPower, nil),
 	})
 	response, err = dev.QueryEchonetLite(request, smartmeter.Retry(3))
 	if err != nil {
@@ -63,5 +63,3 @@ Instantaneous Electric Power: 389.000000 [W]
 ```
 
 [examples/](examples/)以下に利用例がありますので参考にしてください。
-
-

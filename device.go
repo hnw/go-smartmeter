@@ -379,11 +379,12 @@ func (d *Device) QueryEchonetLite(req *Frame, opts ...Option) (res *Frame, err e
 			frame, parseErr := parseERXUDP(line)
 			if parseErr != nil {
 				if errors.Is(parseErr, errNonEchonetLiteERXUDP) {
+					d.debugf("Ignored non-echonet ERXUDP: %s", line)
 					return false, nil
 				}
 				d.warnf("ERXUDP parse error: cmd=%q, err=%+v", cmd, parseErr)
 			} else if !frame.CorrespondTo(req) {
-				d.infof("ERXUDP ignorable error: f=%+v, req=%+v", frame, req)
+				d.debugf("ERXUDP ignorable error: f=%+v, req=%+v", frame, req)
 			} else {
 				res = frame
 				return true, nil
@@ -432,13 +433,19 @@ func parseERXUDP(line string) (*Frame, error) {
 }
 
 func (d *Device) warnf(fmt string, v ...interface{}) {
-	if d.Verbosity >= 1 && d.logger != nil {
+	if d.Verbosity >= 1 {
 		d.logf(fmt, v...)
 	}
 }
 
 func (d *Device) infof(fmt string, v ...interface{}) {
-	if d.Verbosity >= 2 && d.logger != nil {
+	if d.Verbosity >= 2 {
+		d.logf(fmt, v...)
+	}
+}
+
+func (d *Device) debugf(fmt string, v ...interface{}) {
+	if d.Verbosity >= 3 {
 		d.logf(fmt, v...)
 	}
 }

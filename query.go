@@ -75,7 +75,7 @@ func (q *query) Exec() (res string, err error) {
 				if errors.Is(err, ErrRetryable) {
 					q.retry--
 					if q.retry >= 0 {
-						q.warnf("Ignorable error: %+v\n", err)
+						q.infof("Retryable error occurred, retrying...: %+v\n", err)
 						time.Sleep(q.retryInterval)
 						// 本当はループにすべきなんだけど手抜きで再帰
 						return q.Exec()
@@ -97,8 +97,14 @@ func (q *query) warnf(fmt string, v ...interface{}) {
 	}
 }
 
+func (q *query) infof(fmt string, v ...interface{}) {
+	if q.verbosity >= 2 {
+		q.logf(fmt, v...)
+	}
+}
+
 func (q *query) debugf(fmt string, v ...interface{}) {
-	if q.verbosity >= 3 && q.logger != nil {
+	if q.verbosity >= 3 {
 		q.logf(fmt, v...)
 	}
 }
